@@ -1,7 +1,7 @@
 
 import { ChatBubble } from '@/components/chat-bubble';
-import React, { useRef } from 'react';
-import { FlatList, StyleSheet, Text } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 const messages: Message[] = [
@@ -22,19 +22,42 @@ const renderMessage = ({item}) => {
 }
 
 export default function TabTwoScreen() {
+  // State for the new message input
+  const [newMessage, setNewMessage] = useState('');
+
   // A ref to automatically scroll the message list
   const flatListRef = useRef(null);
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.mainContainer}>
-        <Text>Messages</Text>
-        <FlatList
-          data={messages}
-          showsVerticalScrollIndicator={false}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-        />
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          <Text>Messages</Text>
+
+          <FlatList
+            data={messages}
+            showsVerticalScrollIndicator={false}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+          />
+
+          <View style={styles.inputContainer}>
+            <TextInput 
+              style={styles.input}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              placeholder="What's on your mind?"
+              multiline
+            />
+            <TouchableOpacity style={styles.sendButton} onPress={() => { console.log("send pressed")}}>
+              <Text>Send</Text>
+            </TouchableOpacity>    
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>
   )
@@ -127,11 +150,8 @@ export default function TabTwoScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  keyboardAvoidingView: {
+    flex: 1,
   },
   message: {
     backgroundColor: '#2377F1',
@@ -140,5 +160,30 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     backgroundColor: '#fff'
-  }
+  },
+    inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 25,
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    paddingBottom: 10,
+    maxHeight: 120,
+  },
+  sendButton: {
+    marginLeft: 10,
+    backgroundColor: '#0B93F6',
+    borderRadius: 25,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

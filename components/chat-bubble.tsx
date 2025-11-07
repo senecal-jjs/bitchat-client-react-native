@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
         maxWidth: '80%',
     },
     myMessage: {
-        marginRight: 5,
+        marginRight: 6,
         backgroundColor: '#0B93F6',
         alignSelf: 'flex-end',
         borderBottomRightRadius: 5,
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     theirMessage: {
-        marginLeft: 5,
+        marginLeft: 6,
         backgroundColor: '#E5E5EA',
         alignSelf: 'flex-start',
         borderBottomLeftRadius: 5,
