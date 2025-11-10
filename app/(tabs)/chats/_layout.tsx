@@ -10,7 +10,8 @@ export default function ChatsLayout() {
             <Stack.Screen
                 name="index"
                 options={{
-                    headerShown: false
+                    headerShown: false,
+                    title: '',
                 }}
              />
         </Stack>
