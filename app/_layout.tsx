@@ -14,10 +14,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   const {
-    allDevices,
-    connectedDevices,
-    connectToDevice,
-    color,
     requestPermissions,
     scanForPeripherals,
     advertiseAsPeripheral,
@@ -27,8 +23,8 @@ export default function RootLayout() {
     const isPermissionsEnabled = await requestPermissions()
 
     if (isPermissionsEnabled) {
-      scanForPeripherals()
       advertiseAsPeripheral()
+      scanForPeripherals()
     }
   }
 

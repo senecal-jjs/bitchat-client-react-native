@@ -1,4 +1,5 @@
  
+import MessageService from "@/services/message-service";
 import * as ExpoDevice from "expo-device";
 import {
     setServices,
@@ -15,8 +16,8 @@ import {
 } from "react-native-ble-plx";
 import Peripheral, { Characteristic as PeripheralCharacteristic, Service } from 'react-native-peripheral';
 
-const DATA_SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
-const COLOR_CHARACTERISTIC_UUID = "19b10001-e8f2-537e-4f6c-d104768a1217";
+export const DATA_SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
+export const COLOR_CHARACTERISTIC_UUID = "19b10001-e8f2-537e-4f6c-d104768a1217";
 
 const bleManager = new BleManager();
 
@@ -25,6 +26,7 @@ function useBLE() {
   const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
   const [characteristicValue, setCharacteristic] = useState('')
   const [color, setColor] = useState("white");
+  const { receivePacket } = MessageService()
 
   const requestAndroid31Permissions = async () => {
     const bluetoothScanPermission = await PermissionsAndroid.request(
@@ -93,7 +95,7 @@ function useBLE() {
             characteristics: [
                 {
                     uuid: COLOR_CHARACTERISTIC_UUID,
-                    properties: ['read', 'write', 'notify'],
+                    properties: ['read', 'write', 'notify', 'writeWithoutResponse'],
                     value: characteristicValue,
                 }
             ]
@@ -110,18 +112,19 @@ function useBLE() {
     Peripheral.onStateChanged(state => {
         // wait until bluetooth is ready
         if (state === 'poweredOn') {
+            console.log("ble peripheral powered on")
+
             // define a characteristic with a value
             const ch = new PeripheralCharacteristic({
                 uuid: COLOR_CHARACTERISTIC_UUID,
-                properties: ['read', 'write', 'notify'],
+                properties: ['read', 'write', 'notify', 'writeWithoutResponse'],
                 permissions: ['readable', 'writeable'],
                 onReadRequest: async (offset?: number) => {
-                    return this.value
+                    return characteristicValue
                 },
                 onWriteRequest: async (value: string, offset?: number) => {
                     // store or do something with value
-                    this.value = value
-                    ch.notify(value)
+                    receivePacket(value)
                 }
             })
 
@@ -163,6 +166,7 @@ function useBLE() {
       if (error) {
         console.log(error);
       }
+
       // confirm the device is advertising the data service uuid
       if (device && device.serviceUUIDs?.includes(DATA_SERVICE_UUID)) {
         setAllDevices((prevState: Device[]) => {
@@ -223,6 +227,7 @@ function useBLE() {
     scanForPeripherals,
     startStreamingData,
     advertiseAsPeripheral,
+    updateCharacteristic,
   };
 }
 
