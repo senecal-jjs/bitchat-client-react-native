@@ -1,3 +1,4 @@
+import { Conversation } from "@/types/global";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const ConversationItem = ({ conversation, onPress }: { conversation: Conversation, onPress: any }) => {

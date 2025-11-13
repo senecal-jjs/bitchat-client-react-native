@@ -2,17 +2,17 @@
 import MessageService from "@/services/message-service";
 import * as ExpoDevice from "expo-device";
 import {
-    setServices,
-    startAdvertising
+  setServices,
+  startAdvertising
 } from 'munim-bluetooth-peripheral';
 import { useState } from "react";
 import { PermissionsAndroid, Platform } from "react-native";
 import base64 from "react-native-base64";
 import {
-    BleError,
-    BleManager,
-    Characteristic,
-    Device,
+  BleError,
+  BleManager,
+  Characteristic,
+  Device,
 } from "react-native-ble-plx";
 import Peripheral, { Characteristic as PeripheralCharacteristic, Service } from 'react-native-peripheral';
 
@@ -124,6 +124,7 @@ function useBLE() {
                 },
                 onWriteRequest: async (value: string, offset?: number) => {
                     // store or do something with value
+                    console.log("received write on characteristic")
                     receivePacket(value)
                 }
             })
@@ -131,15 +132,20 @@ function useBLE() {
             // add the characteristic to the service
             const service = new Service({
                 uuid: DATA_SERVICE_UUID,
+                primary: true,
                 characteristics: [ch]
             })
 
             Peripheral.addService(service).then(() => {
                 // start advertising to make your device discoverable
-                Peripheral.startAdvertising({
-                    name: 'bitcli',
-                    serviceUuids: [DATA_SERVICE_UUID]
-                })
+                try {
+                  Peripheral.startAdvertising({
+                      name: 'bitcli',
+                      serviceUuids: [service.uuid]
+                  })
+                } catch(e) {
+                  console.error(`Peripheral advert failed ${e}`)
+                }
             })
         }
     })
@@ -148,10 +154,9 @@ function useBLE() {
   const connectToDevice = async (device: Device) => {
     try {
       const deviceConnection = await bleManager.connectToDevice(device.id);
-      setConnectedDevices([...connectedDevices, deviceConnection])
-      await deviceConnection.discoverAllServicesAndCharacteristics();
+      const discovery = await deviceConnection.discoverAllServicesAndCharacteristics();
+      setConnectedDevices([...connectedDevices, discovery])
       bleManager.stopDeviceScan();
-
       startStreamingData(deviceConnection);
     } catch (e) {
       console.log("FAILED TO CONNECT", e);
@@ -171,7 +176,6 @@ function useBLE() {
       if (device && device.serviceUUIDs?.includes(DATA_SERVICE_UUID)) {
         setAllDevices((prevState: Device[]) => {
           if (!isDuplicateDevice(prevState, device)) {
-            console.log(`detected peripheral ${device.id}`)
             connectToDevice(device)
             return [...prevState, device];
           }

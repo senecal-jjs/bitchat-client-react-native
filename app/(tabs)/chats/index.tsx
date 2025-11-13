@@ -1,5 +1,8 @@
 import ConversationItem from '@/components/conversation';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import useBLE from '@/hooks/use-ble';
+import { Conversation } from '@/types/global';
+import { Button } from '@react-navigation/elements';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
@@ -13,6 +16,7 @@ const mockConversations = [
 
 export default function TabTwoScreen() {
   const router = useRouter()
+  const { allDevices, connectedDevices } = useBLE()
 
   const renderItem = ({item}: {item: Conversation}) => (
     <ConversationItem 
@@ -31,6 +35,8 @@ export default function TabTwoScreen() {
       <SafeAreaView style={styles.mainContainer}>
         <View style={styles.chatHeader}>
           <View style={{ 'width': 28 }}></View>
+          <Button onPressOut={() => {console.log(connectedDevices)}}>Con</Button>
+          <Button onPressOut={() => {console.log(allDevices)}}>All</Button>
           <Text style={styles.headerText}>Chats</Text>
           <IconSymbol size={28} name="square.and.pencil" color={'white'}></IconSymbol>
         </View>

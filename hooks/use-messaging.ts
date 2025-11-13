@@ -1,15 +1,43 @@
+import { useBluetooth } from '@/components/bluetooth-context';
+import { encode } from '@/services/packet-service';
+import { toBinaryPayload } from '@/services/protocol-service';
+import { BitchatPacket, Message, PacketType } from '@/types/global';
 import base64 from 'react-native-base64';
-import useBLE from "./use-ble";
 
 function useMessaging(serviceUUID: string, characteristicUUID: string) {
-    const { connectedDevices } = useBLE()
+    const { connectedDevices } = useBluetooth()
 
-    const sendMessage = (message: Message) => {
+    const sendMessage = (message: Message, from: string, to: string) => {
+        const encodedMessage = toBinaryPayload(message)
+
+        if (!encodedMessage) {
+            throw Error(`Failed to encode message [messageId: ${message.id}]`)
+        }
+
+        const packet: BitchatPacket = {
+            version: 1,
+            type: PacketType.MESSAGE,
+            senderId: from,
+            recipientId: to, 
+            timestamp: Date.now(),
+            payload: encodedMessage,
+            signature: null,
+            allowedHops: 3,
+            route: new Uint8Array(),
+        }
+
+        const encodedPacket = encode(packet)
+
+        if (!encodedPacket) {
+            throw Error(`Failed to encode packet [messageId: ${message.id}]`)
+        }
+
         connectedDevices.forEach((device) => {
+            console.log(`broadcasting to device ${device.id}`)
             device.writeCharacteristicWithoutResponseForService(
                 serviceUUID,
                 characteristicUUID,
-                base64.encode(message.contents)
+                base64.encodeFromByteArray(encodedPacket)
             )
         })
     }

@@ -1,26 +1,3 @@
-// Represents a user visible message in the BitChat system.
-// Handles both broadcast messages and private encrypted messages,
-// with support for re;ies, and delivery tracking
-// - Note this is the primary data model for chat messages
-type Message = {
-    id: string
-    sender: string,
-    contents: string,
-    timestamp: number,
-    isRelay: boolean,
-    originalSender: string?,
-    isPrivate: boolean,
-    recipientNickname: string?,
-    senderPeerId: string?,
-}
-
-type Conversation = {
-    id: string
-    name: string
-    lastMessage: string
-    timestamp: string
-}
-
 enum DeliveryStatus {
     SENDING,
     SENT,      // left our device
@@ -41,6 +18,29 @@ enum PacketType {
     FILE_TRANSFER  // Binary file/audio/image payloads
 }
 
+// Represents a user visible message in the BitChat system.
+// Handles both broadcast messages and private encrypted messages,
+// with support for re;ies, and delivery tracking
+// - Note this is the primary data model for chat messages
+type Message = {
+    id: string
+    sender: string,
+    contents: string,
+    timestamp: number,
+    isRelay: boolean,
+    originalSender: string | null,
+    isPrivate: boolean,
+    recipientNickname: string | null,
+    senderPeerId: string | null,
+}
+
+type Conversation = {
+    id: string
+    name: string
+    lastMessage: string
+    timestamp: string
+}
+
 // The core packet structure for all BitChat protocol messages.
 // Encapsulates all data needed for routing through the mesh network,
 // including allowedHops for hop limiting and optional encryption.
@@ -49,10 +49,13 @@ type BitchatPacket = {
     version: number,
     type: PacketType,
     senderId: string,
-    recipientId: string,
+    recipientId: string | null,
     timestamp: number,
     payload: Uint8Array,
-    signature: string?,
+    signature: string | null,
     allowedHops: number,
     route: Uint8Array,
 }
+
+export { BitchatPacket, Conversation, DeliveryStatus, Message, PacketType }
+

@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { FlatList, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -6,21 +7,34 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ChatBubble } from '@/components/chat-bubble';
 import { COLOR_CHARACTERISTIC_UUID, DATA_SERVICE_UUID } from '@/hooks/use-ble';
 import useMessaging from '@/hooks/use-messaging';
+import { Message } from '@/types/global';
+import { getRandomBytes } from '@/utils/random';
+import { secureFetch, secureStore } from '@/utils/secure-store';
 
-const renderMessage = ({item}: { item: Message }) => {
-  return <ChatBubble message={item} />
-}
+// TODO (create during onboarding)
+getRandomBytes(8).then(bytes =>
+  secureStore("peerId", bytes.toString())
+)
 
 export default function Chat() {
   const navigation = useNavigation()
   const { chatId } = useLocalSearchParams<{ chatId: string }>()
   const { sendMessage } = useMessaging(DATA_SERVICE_UUID, COLOR_CHARACTERISTIC_UUID)
+  const [peerId, setPeerId] = useState<string | null>(null)
 
   useEffect(() => {
     navigation.setOptions({ 
       title: "Contact"
     });
   }, [navigation]);
+
+  useEffect(() => {
+    secureFetch("peerId").then(peerId => setPeerId(peerId))
+  }, [])
+
+  const renderMessage = ({item}: { item: Message }) => {
+    return <ChatBubble message={item} peerId={peerId!} />
+  }
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -43,7 +57,7 @@ export default function Chat() {
       originalSender: "1",
       isPrivate: true,
       recipientNickname: "ace",
-      senderPeerId: "1",
+      senderPeerId: peerId,
     }
   ])
 
@@ -56,7 +70,7 @@ export default function Chat() {
   const handleSend = () => {
     if (newMessage.trim()) {
       const newMsg: Message = {
-        id: Math.random().toString(),
+        id: Crypto.randomUUID(),
         sender: "1",
         contents: newMessage,
         timestamp: Date.now(),
@@ -64,12 +78,12 @@ export default function Chat() {
         originalSender: "1",
         isPrivate: true,
         recipientNickname: "ace",
-        senderPeerId: "1",
+        senderPeerId: peerId,
       }
 
       setMessages([...messages, newMsg])
       setNewMessage('')
-      sendMessage(newMsg)
+      sendMessage(newMsg, peerId!, "recip")
 
       // scroll to the end of the list to show the new message
       flatListRef.current?.scrollToEnd({ animated: true })
@@ -124,7 +138,8 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#090909ff'
+    backgroundColor: '#090909ff',
+    paddingTop: 10,
   },
   inputContainer: {
     flexDirection: 'row',

@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import useBLE from '@/hooks/use-ble';
+import { BluetoothProvider } from '@/components/bluetooth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
@@ -13,30 +13,32 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  const {
-    requestPermissions,
-    scanForPeripherals,
-    advertiseAsPeripheral,
-  } = useBLE();
+  // const {
+  //   requestPermissions,
+  //   scanForPeripherals,
+  //   advertiseAsPeripheral,
+  // } = useBLE();
 
-  const scanForDevices = async () => {
-    const isPermissionsEnabled = await requestPermissions()
+  // const scanForDevices = async () => {
+  //   const isPermissionsEnabled = await requestPermissions()
 
-    if (isPermissionsEnabled) {
-      advertiseAsPeripheral()
-      scanForPeripherals()
-    }
-  }
+  //   if (isPermissionsEnabled) {
+  //     advertiseAsPeripheral()
+  //     scanForPeripherals()
+  //   }
+  // }
 
-  scanForDevices()
+  // scanForDevices()
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
+      <BluetoothProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </BluetoothProvider>
     </ThemeProvider>
   );
 }

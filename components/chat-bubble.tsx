@@ -1,5 +1,11 @@
+import { Message } from "@/types/global";
 import { StyleSheet, Text, View } from "react-native";
 import { SvgXml } from 'react-native-svg';
+
+interface ChatBubbleProps {
+    message: Message;
+    peerId: string;
+}
 
 // Xml strings for left and right curl svg
 const curlRight = `<svg width="17" height="21" viewBox="0 0 17 21" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -12,20 +18,20 @@ const curlLeft = `<svg width="17" height="21" viewBox="0 0 17 21" fill="none" xm
 </svg>
 `
 
-export const ChatBubble = ({message}) => {
+export const ChatBubble = ({message, peerId}: ChatBubbleProps) => {
     return (
         <View>
             <View
                 style={[
                     styles.bubble,
-                    message.isMine ? styles.myMessage : styles.theirMessage
+                    message.senderPeerId === peerId ? styles.myMessage : styles.theirMessage
                 ]}
             >
-                <Text style={message.isMine ? styles.myMessageText : styles.theirMessageText }>
+                <Text style={message.senderPeerId === peerId ? styles.myMessageText : styles.theirMessageText }>
                     {message.contents}
                 </Text>  
             </View>
-            { !message.isMine ? <SvgXml xml={curlLeft} width={20} height={20} style={styles.curlLeft} /> : <SvgXml xml={curlRight} width={20} height={20} style={styles.curlRight} /> }
+            { message.senderPeerId !== peerId ? <SvgXml xml={curlLeft} width={20} height={20} style={styles.curlLeft} /> : <SvgXml xml={curlRight} width={20} height={20} style={styles.curlRight} /> }
         </View>
     )
 }
