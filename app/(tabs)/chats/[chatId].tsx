@@ -22,16 +22,28 @@ export default function Chat() {
     });
   }, [navigation]);
 
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
-      contents: "Hello!",
-      isMine: true, 
+      id: Math.random().toString(),
+      sender: "1",
+      contents: "hello",
+      timestamp: Date.now(),
+      isRelay: false,
+      originalSender: "1",
+      isPrivate: true,
+      recipientNickname: "ace",
+      senderPeerId: "1",
     },
     {
-      id: "2",
-      contents: "Hello Back!",
-      isMine: false, 
+      id: Math.random().toString(),
+      sender: "1",
+      contents: "hello back",
+      timestamp: Date.now(),
+      isRelay: false,
+      originalSender: "1",
+      isPrivate: true,
+      recipientNickname: "ace",
+      senderPeerId: "1",
     }
   ])
 
@@ -43,10 +55,16 @@ export default function Chat() {
 
   const handleSend = () => {
     if (newMessage.trim()) {
-      const newMsg = {
+      const newMsg: Message = {
         id: Math.random().toString(),
+        sender: "1",
         contents: newMessage,
-        isMine: false,
+        timestamp: Date.now(),
+        isRelay: false,
+        originalSender: "1",
+        isPrivate: true,
+        recipientNickname: "ace",
+        senderPeerId: "1",
       }
 
       setMessages([...messages, newMsg])
