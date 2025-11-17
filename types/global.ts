@@ -6,6 +6,11 @@ enum DeliveryStatus {
     FAILED,
 }
 
+enum Result {
+    SUCCESS,
+    FAILURE,
+}
+
 enum PacketType {
     ANNOUNCE, // "I'm here" with nickname
     MESSAGE,  // Public chat message
@@ -32,6 +37,7 @@ type Message = {
     isPrivate: boolean,
     recipientNickname: string | null,
     senderPeerId: string | null,
+    deliveryStatus: DeliveryStatus | null,
 }
 
 type Conversation = {
@@ -57,5 +63,5 @@ type BitchatPacket = {
     route: Uint8Array,
 }
 
-export { BitchatPacket, Conversation, DeliveryStatus, Message, PacketType }
+export { BitchatPacket, Conversation, DeliveryStatus, Message, PacketType, Result }
 

@@ -35,6 +35,7 @@
 /// - Optional fields for new features
 ///
 
+import { DeliveryStatus, Message } from "@/types/global"
 import ByteArrayBuilder from "@/utils/ByteArrayBuilder"
 
 // Message format:
@@ -238,6 +239,8 @@ const fromBinaryPayload = (data: Uint8Array): Message | null => {
     */
     
     // Create and return the Message object
+    const deliveryStatus = isPrivate ? DeliveryStatus.SENDING : null
+
     const message: Message = {
         id,
         sender,
@@ -248,6 +251,7 @@ const fromBinaryPayload = (data: Uint8Array): Message | null => {
         isPrivate,
         recipientNickname,
         senderPeerId,
+        deliveryStatus,
     }
     
     return message

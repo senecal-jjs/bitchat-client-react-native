@@ -1,13 +1,14 @@
 import { useBluetooth } from '@/components/bluetooth-context';
 import { encode } from '@/services/packet-service';
 import { toBinaryPayload } from '@/services/protocol-service';
-import { BitchatPacket, Message, PacketType } from '@/types/global';
+import { BitchatPacket, Message, PacketType, Result } from '@/types/global';
+import { MessageService } from '@/types/interface';
 import base64 from 'react-native-base64';
 
-function useMessaging(serviceUUID: string, characteristicUUID: string) {
+function useBleMessaging(serviceUUID: string, characteristicUUID: string): MessageService {
     const { connectedDevices } = useBluetooth()
 
-    const sendMessage = (message: Message, from: string, to: string) => {
+    const sendMessage = (message: Message, from: string, to: string): Result => {
         const encodedMessage = toBinaryPayload(message)
 
         if (!encodedMessage) {
@@ -40,6 +41,8 @@ function useMessaging(serviceUUID: string, characteristicUUID: string) {
                 base64.encodeFromByteArray(encodedPacket)
             )
         })
+
+        return Result.SUCCESS
     }
 
     return {
@@ -47,4 +50,4 @@ function useMessaging(serviceUUID: string, characteristicUUID: string) {
    };
 }
 
-export default useMessaging
+export default useBleMessaging

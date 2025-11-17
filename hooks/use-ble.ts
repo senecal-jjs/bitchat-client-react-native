@@ -1,5 +1,8 @@
  
-import MessageService from "@/services/message-service";
+import { decode } from "@/services/packet-service";
+import { fromBinaryPayload } from "@/services/protocol-service";
+import { BitchatPacket } from "@/types/global";
+import Base64String from "@/utils/Base64String";
 import * as ExpoDevice from "expo-device";
 import {
   setServices,
@@ -26,7 +29,14 @@ function useBLE() {
   const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
   const [characteristicValue, setCharacteristic] = useState('')
   const [color, setColor] = useState("white");
-  const { receivePacket } = MessageService()
+
+  const receivePacket = (packet: Base64String) => {
+        const packetBytes = packet.toBytes() 
+        const decodePacket: BitchatPacket = decode(packetBytes)
+        console.log(decodePacket)
+        const message = fromBinaryPayload(decodePacket!.payload)
+        console.log(message)
+  }
 
   const requestAndroid31Permissions = async () => {
     const bluetoothScanPermission = await PermissionsAndroid.request(
@@ -125,7 +135,7 @@ function useBLE() {
                 onWriteRequest: async (value: string, offset?: number) => {
                     // store or do something with value
                     console.log("received write on characteristic")
-                    receivePacket(value)
+                    receivePacket(Base64String.fromBase64(value))
                 }
             })
 

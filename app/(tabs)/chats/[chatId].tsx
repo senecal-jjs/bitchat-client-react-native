@@ -6,8 +6,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatBubble } from '@/components/chat-bubble';
 import { COLOR_CHARACTERISTIC_UUID, DATA_SERVICE_UUID } from '@/hooks/use-ble';
-import useMessaging from '@/hooks/use-messaging';
-import { Message } from '@/types/global';
+import useMessaging from '@/hooks/use-ble-messaging';
+import { DeliveryStatus, Message } from '@/types/global';
 import { getRandomBytes } from '@/utils/random';
 import { secureFetch, secureStore } from '@/utils/secure-store';
 
@@ -47,6 +47,7 @@ export default function Chat() {
       isPrivate: true,
       recipientNickname: "ace",
       senderPeerId: "1",
+      deliveryStatus: DeliveryStatus.SENT,
     },
     {
       id: Math.random().toString(),
@@ -58,6 +59,7 @@ export default function Chat() {
       isPrivate: true,
       recipientNickname: "ace",
       senderPeerId: peerId,
+      deliveryStatus: DeliveryStatus.SENT,
     }
   ])
 
@@ -79,6 +81,7 @@ export default function Chat() {
         isPrivate: true,
         recipientNickname: "ace",
         senderPeerId: peerId,
+        deliveryStatus: DeliveryStatus.SENDING,
       }
 
       setMessages([...messages, newMsg])
