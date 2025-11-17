@@ -1,13 +1,9 @@
- 
 import { decode } from "@/services/packet-service";
 import { fromBinaryPayload } from "@/services/protocol-service";
 import { BitchatPacket } from "@/types/global";
-import Base64String from "@/utils/Base64String";
+import { Base64String } from "@/utils/Base64String";
 import * as ExpoDevice from "expo-device";
-import {
-  setServices,
-  startAdvertising
-} from 'munim-bluetooth-peripheral';
+import { setServices, startAdvertising } from "munim-bluetooth-peripheral";
 import { useState } from "react";
 import { PermissionsAndroid, Platform } from "react-native";
 import base64 from "react-native-base64";
@@ -17,7 +13,10 @@ import {
   Characteristic,
   Device,
 } from "react-native-ble-plx";
-import Peripheral, { Characteristic as PeripheralCharacteristic, Service } from 'react-native-peripheral';
+import Peripheral, {
+  Characteristic as PeripheralCharacteristic,
+  Service,
+} from "react-native-peripheral";
 
 export const DATA_SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
 export const COLOR_CHARACTERISTIC_UUID = "19b10001-e8f2-537e-4f6c-d104768a1217";
@@ -27,16 +26,16 @@ const bleManager = new BleManager();
 function useBLE() {
   const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
-  const [characteristicValue, setCharacteristic] = useState('')
+  const [characteristicValue, setCharacteristic] = useState("");
   const [color, setColor] = useState("white");
 
   const receivePacket = (packet: Base64String) => {
-        const packetBytes = packet.toBytes() 
-        const decodePacket: BitchatPacket = decode(packetBytes)
-        console.log(decodePacket)
-        const message = fromBinaryPayload(decodePacket!.payload)
-        console.log(message)
-  }
+    const packetBytes = packet.toBytes();
+    const decodePacket: BitchatPacket | null = decode(packetBytes);
+    console.log(decodePacket);
+    const message = fromBinaryPayload(decodePacket!.payload);
+    console.log(message);
+  };
 
   const requestAndroid31Permissions = async () => {
     const bluetoothScanPermission = await PermissionsAndroid.request(
@@ -45,7 +44,7 @@ function useBLE() {
         title: "Location Permission",
         message: "Bluetooth Low Energy requires Location",
         buttonPositive: "OK",
-      }
+      },
     );
     const bluetoothConnectPermission = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
@@ -53,7 +52,7 @@ function useBLE() {
         title: "Location Permission",
         message: "Bluetooth Low Energy requires Location",
         buttonPositive: "OK",
-      }
+      },
     );
     const fineLocationPermission = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -61,7 +60,7 @@ function useBLE() {
         title: "Location Permission",
         message: "Bluetooth Low Energy requires Location",
         buttonPositive: "OK",
-      }
+      },
     );
 
     return (
@@ -80,7 +79,7 @@ function useBLE() {
             title: "Location Permission",
             message: "Bluetooth Low Energy requires Location",
             buttonPositive: "OK",
-          }
+          },
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } else {
@@ -92,80 +91,81 @@ function useBLE() {
     } else {
       return true;
     }
-  }; 
+  };
 
   const updateCharacteristic = (value: string) => {
-    setCharacteristic(value)
-  }
+    setCharacteristic(value);
+  };
 
   const setupPeripheral = () => {
     setServices([
-        {
-            uuid: DATA_SERVICE_UUID,
-            characteristics: [
-                {
-                    uuid: COLOR_CHARACTERISTIC_UUID,
-                    properties: ['read', 'write', 'notify', 'writeWithoutResponse'],
-                    value: characteristicValue,
-                }
-            ]
-        }
-    ])
+      {
+        uuid: DATA_SERVICE_UUID,
+        characteristics: [
+          {
+            uuid: COLOR_CHARACTERISTIC_UUID,
+            properties: ["read", "write", "notify", "writeWithoutResponse"],
+            value: characteristicValue,
+          },
+        ],
+      },
+    ]);
 
     startAdvertising({
-        serviceUUIDs: [DATA_SERVICE_UUID],
-        localName: "bitcli",
-    })
-  }
+      serviceUUIDs: [DATA_SERVICE_UUID],
+      localName: "bitcli",
+    });
+  };
 
   const advertiseAsPeripheral = async () => {
-    Peripheral.onStateChanged(state => {
-        // wait until bluetooth is ready
-        if (state === 'poweredOn') {
-            console.log("ble peripheral powered on")
+    Peripheral.onStateChanged((state) => {
+      // wait until bluetooth is ready
+      if (state === "poweredOn") {
+        console.log("ble peripheral powered on");
 
-            // define a characteristic with a value
-            const ch = new PeripheralCharacteristic({
-                uuid: COLOR_CHARACTERISTIC_UUID,
-                properties: ['read', 'write', 'notify', 'writeWithoutResponse'],
-                permissions: ['readable', 'writeable'],
-                onReadRequest: async (offset?: number) => {
-                    return characteristicValue
-                },
-                onWriteRequest: async (value: string, offset?: number) => {
-                    // store or do something with value
-                    console.log("received write on characteristic")
-                    receivePacket(Base64String.fromBase64(value))
-                }
-            })
+        // define a characteristic with a value
+        const ch = new PeripheralCharacteristic({
+          uuid: COLOR_CHARACTERISTIC_UUID,
+          properties: ["read", "write", "notify", "writeWithoutResponse"],
+          permissions: ["readable", "writeable"],
+          onReadRequest: async (offset?: number) => {
+            return characteristicValue;
+          },
+          onWriteRequest: async (value: string, offset?: number) => {
+            // store or do something with value
+            console.log("received write on characteristic");
+            receivePacket(Base64String.fromBase64(value));
+          },
+        });
 
-            // add the characteristic to the service
-            const service = new Service({
-                uuid: DATA_SERVICE_UUID,
-                primary: true,
-                characteristics: [ch]
-            })
+        // add the characteristic to the service
+        const service = new Service({
+          uuid: DATA_SERVICE_UUID,
+          primary: true,
+          characteristics: [ch],
+        });
 
-            Peripheral.addService(service).then(() => {
-                // start advertising to make your device discoverable
-                try {
-                  Peripheral.startAdvertising({
-                      name: 'bitcli',
-                      serviceUuids: [service.uuid]
-                  })
-                } catch(e) {
-                  console.error(`Peripheral advert failed ${e}`)
-                }
-            })
-        }
-    })
-  }
+        Peripheral.addService(service).then(() => {
+          // start advertising to make your device discoverable
+          try {
+            Peripheral.startAdvertising({
+              name: "bitcli",
+              serviceUuids: [service.uuid],
+            });
+          } catch (e) {
+            console.error(`Peripheral advert failed ${e}`);
+          }
+        });
+      }
+    });
+  };
 
   const connectToDevice = async (device: Device) => {
     try {
       const deviceConnection = await bleManager.connectToDevice(device.id);
-      const discovery = await deviceConnection.discoverAllServicesAndCharacteristics();
-      setConnectedDevices([...connectedDevices, discovery])
+      const discovery =
+        await deviceConnection.discoverAllServicesAndCharacteristics();
+      setConnectedDevices([...connectedDevices, discovery]);
       bleManager.stopDeviceScan();
       startStreamingData(deviceConnection);
     } catch (e) {
@@ -186,7 +186,7 @@ function useBLE() {
       if (device && device.serviceUUIDs?.includes(DATA_SERVICE_UUID)) {
         setAllDevices((prevState: Device[]) => {
           if (!isDuplicateDevice(prevState, device)) {
-            connectToDevice(device)
+            connectToDevice(device);
             return [...prevState, device];
           }
           return prevState;
@@ -196,7 +196,7 @@ function useBLE() {
 
   const onDataUpdate = (
     error: BleError | null,
-    characteristic: Characteristic | null
+    characteristic: Characteristic | null,
   ) => {
     if (error) {
       console.log(error);
@@ -225,7 +225,7 @@ function useBLE() {
       device.monitorCharacteristicForService(
         DATA_SERVICE_UUID,
         COLOR_CHARACTERISTIC_UUID,
-        onDataUpdate
+        onDataUpdate,
       );
     } else {
       console.log("No Device Connected");

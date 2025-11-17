@@ -1,3 +1,4 @@
+import { BitchatPacket } from "@/types/global"
 import CompressionUtil from "./compression-service"
 import { MessagePadding } from "./padding-service"
 
