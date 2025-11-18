@@ -1,3 +1,5 @@
+import { Buffer } from "buffer";
+
 /**
  * A TypeScript class that approximates a Kotlin value class for Base64 strings.
  * Provides a type-safe wrapper around base64-encoded strings with encoding/decoding utilities.

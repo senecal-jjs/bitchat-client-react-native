@@ -15,6 +15,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
+import { useRepos } from "@/components/repository-context";
 import { COLOR_CHARACTERISTIC_UUID, DATA_SERVICE_UUID } from "@/hooks/use-ble";
 import useMessaging from "@/hooks/use-ble-messaging";
 import { DeliveryStatus, Message } from "@/types/global";
@@ -25,6 +26,8 @@ import { secureFetch, secureStore } from "@/utils/secure-store";
 getRandomBytes(8).then((bytes) => secureStore("peerId", bytes.toString()));
 
 export default function Chat() {
+  const { getRepo } = useRepos();
+  const messagesRepo = getRepo("messagesRepo");
   const navigation = useNavigation();
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const { sendMessage } = useMessaging(
@@ -43,35 +46,53 @@ export default function Chat() {
     secureFetch("peerId").then((peerId) => setPeerId(peerId));
   }, []);
 
+  useEffect(() => {
+    const initialFetchData = async (limit: number) => {
+      const initialMessages = await messagesRepo.getAll(limit);
+      setMessages(initialMessages);
+    };
+
+    const fetchData = async () => {
+      const initialMessages = await messagesRepo.getAll(1);
+      setMessages([...messages, ...initialMessages]);
+    };
+
+    initialFetchData(50);
+
+    const intervalId = setInterval(fetchData, 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   const renderMessage = ({ item }: { item: Message }) => {
     return <ChatBubble message={item} peerId={peerId!} />;
   };
 
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: Math.random().toString(),
-      sender: "1",
-      contents: "hello",
-      timestamp: Date.now(),
-      isRelay: false,
-      originalSender: "1",
-      isPrivate: true,
-      recipientNickname: "ace",
-      senderPeerId: "1",
-      deliveryStatus: DeliveryStatus.SENT,
-    },
-    {
-      id: Math.random().toString(),
-      sender: "1",
-      contents: "hello back",
-      timestamp: Date.now(),
-      isRelay: false,
-      originalSender: "1",
-      isPrivate: true,
-      recipientNickname: "ace",
-      senderPeerId: peerId,
-      deliveryStatus: DeliveryStatus.SENT,
-    },
+    // {
+    //   id: Math.random().toString(),
+    //   sender: "1",
+    //   contents: "hello",
+    //   timestamp: Date.now(),
+    //   isRelay: false,
+    //   originalSender: "1",
+    //   isPrivate: true,
+    //   recipientNickname: "ace",
+    //   senderPeerId: "1",
+    //   deliveryStatus: DeliveryStatus.SENT,
+    // },
+    // {
+    //   id: Math.random().toString(),
+    //   sender: "1",
+    //   contents: "hello back",
+    //   timestamp: Date.now(),
+    //   isRelay: false,
+    //   originalSender: "1",
+    //   isPrivate: true,
+    //   recipientNickname: "ace",
+    //   senderPeerId: peerId,
+    //   deliveryStatus: DeliveryStatus.SENT,
+    // },
   ]);
 
   // State for the new message input

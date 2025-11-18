@@ -137,19 +137,21 @@ const toBinaryPayload = (message: Message): Uint8Array | null => {
   return buffer.build();
 };
 
-const fromBinaryPayload = (data: Uint8Array): Message | null => {
+const fromBinaryPayload = (data: Uint8Array): Message => {
   // Create a copy to prevent modification issues
   const dataCopy = new Uint8Array(data);
 
   // Minimum required size: flags(1) + timestamp(8) + id_len(1) + sender_len(1) + content_len(2) = 13 bytes
   if (dataCopy.length < 13) {
-    return null;
+    throw Error(
+      `Could not convert to Message from binary payload. Data does not meet minimum size. [minSize: 13, binarySize: ${dataCopy.length}]`,
+    );
   }
 
   let offset = 0;
 
   // Parse flags
-  if (offset >= dataCopy.length) return null;
+  if (offset >= dataCopy.length) throw Error("Offset exceed data length.");
   const flags = dataCopy[offset++];
   const isRelay = (flags & 0x01) !== 0;
   const isPrivate = (flags & 0x02) !== 0;
@@ -159,7 +161,7 @@ const fromBinaryPayload = (data: Uint8Array): Message | null => {
   const hasMentions = (flags & 0x20) !== 0;
 
   // Parse timestamp (8 bytes big-endian)
-  if (offset + 8 > dataCopy.length) return null;
+  if (offset + 8 > dataCopy.length) throw Error("Offset exceed data length.");
   const timestampData = dataCopy.slice(offset, offset + 8);
   let timestampMillis = 0;
   for (let i = 0; i < 8; i++) {
@@ -169,9 +171,10 @@ const fromBinaryPayload = (data: Uint8Array): Message | null => {
   const timestamp = timestampMillis;
 
   // Parse ID
-  if (offset >= dataCopy.length) return null;
+  if (offset >= dataCopy.length) throw Error("Offset exceed data length.");
   const idLength = dataCopy[offset++];
-  if (offset + idLength > dataCopy.length) return null;
+  if (offset + idLength > dataCopy.length)
+    throw Error("Offset exceed data length.");
   const textDecoder = new TextDecoder("utf-8");
   const id =
     textDecoder.decode(dataCopy.slice(offset, offset + idLength)) ||
@@ -179,20 +182,22 @@ const fromBinaryPayload = (data: Uint8Array): Message | null => {
   offset += idLength;
 
   // Parse sender
-  if (offset >= dataCopy.length) return null;
+  if (offset >= dataCopy.length) throw Error("Offset exceed data length.");
   const senderLength = dataCopy[offset++];
-  if (offset + senderLength > dataCopy.length) return null;
+  if (offset + senderLength > dataCopy.length)
+    throw Error("Offset exceed data length.");
   const sender =
     textDecoder.decode(dataCopy.slice(offset, offset + senderLength)) ||
     "unknown";
   offset += senderLength;
 
   // Parse content (2-byte length + data)
-  if (offset + 2 > dataCopy.length) return null;
+  if (offset + 2 > dataCopy.length) throw Error("Offset exceed data length.");
   const contentLengthHigh = dataCopy[offset++];
   const contentLengthLow = dataCopy[offset++];
   const contentLength = (contentLengthHigh << 8) | contentLengthLow;
-  if (offset + contentLength > dataCopy.length) return null;
+  if (offset + contentLength > dataCopy.length)
+    throw Error("Offset exceed data length.");
   const contents =
     textDecoder.decode(dataCopy.slice(offset, offset + contentLength)) || "";
   offset += contentLength;

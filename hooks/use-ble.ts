@@ -1,3 +1,4 @@
+import { useRepos } from "@/components/repository-context";
 import { decode } from "@/services/packet-service";
 import { fromBinaryPayload } from "@/services/protocol-service";
 import { BitchatPacket } from "@/types/global";
@@ -24,6 +25,8 @@ export const COLOR_CHARACTERISTIC_UUID = "19b10001-e8f2-537e-4f6c-d104768a1217";
 const bleManager = new BleManager();
 
 function useBLE() {
+  const { getRepo } = useRepos();
+  const messagesRepo = getRepo("messagesRepo");
   const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [connectedDevices, setConnectedDevices] = useState<Device[]>([]);
   const [characteristicValue, setCharacteristic] = useState("");
@@ -35,6 +38,8 @@ function useBLE() {
     console.log(decodePacket);
     const message = fromBinaryPayload(decodePacket!.payload);
     console.log(message);
+
+    messagesRepo.create(message);
   };
 
   const requestAndroid31Permissions = async () => {
@@ -167,7 +172,7 @@ function useBLE() {
         await deviceConnection.discoverAllServicesAndCharacteristics();
       setConnectedDevices([...connectedDevices, discovery]);
       bleManager.stopDeviceScan();
-      startStreamingData(deviceConnection);
+      // startStreamingData(deviceConnection);
     } catch (e) {
       console.log("FAILED TO CONNECT", e);
     }

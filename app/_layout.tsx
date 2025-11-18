@@ -8,27 +8,36 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { BluetoothProvider } from "@/components/bluetooth-context";
+import { RepositoryProvider } from "@/components/repository-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { migrateDb } from "@/repos/db";
+import * as SQLite from "expo-sqlite";
+import { SQLiteProvider } from "expo-sqlite";
 
 export const unstable_settings = {
   anchor: "(tabs)",
 };
 
 export default function RootLayout() {
+  SQLite.deleteDatabaseAsync("bitchat.db");
   const colorScheme = useColorScheme();
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <BluetoothProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
-        </Stack>
-        <StatusBar style="auto" />
-      </BluetoothProvider>
+      <SQLiteProvider databaseName="bitchat.db" onInit={migrateDb}>
+        <RepositoryProvider>
+          <BluetoothProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="modal"
+                options={{ presentation: "modal", title: "Modal" }}
+              />
+            </Stack>
+            <StatusBar style="auto" />
+          </BluetoothProvider>
+        </RepositoryProvider>
+      </SQLiteProvider>
     </ThemeProvider>
   );
 }
