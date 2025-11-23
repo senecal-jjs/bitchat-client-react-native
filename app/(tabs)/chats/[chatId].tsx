@@ -43,10 +43,12 @@ export default function Chat() {
   const [peerId, setPeerId] = useState<string | null>(null);
 
   useEventListener(BleModule, "onPeripheralReceivedWrite", (message) => {
+    console.log("onPeripheralReceivedWrite");
     decodeMessage(message.rawBytes);
   });
 
   useEventListener(BleModule, "onCentralReceivedNotification", (message) => {
+    console.log("onCentralReceivedNotification");
     decodeMessage(message.rawBytes);
   });
 
@@ -60,28 +62,29 @@ export default function Chat() {
     secureFetch("peerId").then((peerId) => setPeerId(peerId));
   }, []);
 
-  useEffect(() => {
-    const initialFetchData = async (limit: number) => {
-      const initialMessages = await messagesRepo.getAll(limit);
-      setMessages(initialMessages);
-    };
+  // useEffect(() => {
+  //   const initialFetchData = async (limit: number) => {
+  //     const initialMessages = await messagesRepo.getAll(limit);
+  //     setMessages(initialMessages);
+  //   };
 
-    const fetchData = async () => {
-      const initialMessages = await messagesRepo.getAll(1);
-      setMessages([...messages, ...initialMessages]);
-    };
+  //   const fetchData = async () => {
+  //     const initialMessages = await messagesRepo.getAll(1);
+  //     setMessages([...messages, ...initialMessages]);
+  //   };
 
-    initialFetchData(50);
+  //   initialFetchData(50);
 
-    const intervalId = setInterval(fetchData, 1000);
+  //   const intervalId = setInterval(fetchData, 1000);
 
-    return () => clearInterval(intervalId);
-  }, []);
+  //   return () => clearInterval(intervalId);
+  // }, []);
 
   const decodeMessage = (rawBytes: Uint8Array) => {
     const packet = decode(rawBytes)!;
     const payload = fromBinaryPayload(packet?.payload);
     console.log(payload);
+    setMessages([...messages, payload]);
   };
 
   const encodeMessage = (
@@ -120,32 +123,7 @@ export default function Chat() {
     return <ChatBubble message={item} peerId={peerId!} />;
   };
 
-  const [messages, setMessages] = useState<Message[]>([
-    // {
-    //   id: Math.random().toString(),
-    //   sender: "1",
-    //   contents: "hello",
-    //   timestamp: Date.now(),
-    //   isRelay: false,
-    //   originalSender: "1",
-    //   isPrivate: true,
-    //   recipientNickname: "ace",
-    //   senderPeerId: "1",
-    //   deliveryStatus: DeliveryStatus.SENT,
-    // },
-    // {
-    //   id: Math.random().toString(),
-    //   sender: "1",
-    //   contents: "hello back",
-    //   timestamp: Date.now(),
-    //   isRelay: false,
-    //   originalSender: "1",
-    //   isPrivate: true,
-    //   recipientNickname: "ace",
-    //   senderPeerId: peerId,
-    //   deliveryStatus: DeliveryStatus.SENT,
-    // },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // State for the new message input
   const [newMessage, setNewMessage] = useState("");

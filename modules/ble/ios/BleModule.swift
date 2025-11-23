@@ -747,6 +747,7 @@ extension BleManager: CBPeripheralManagerDelegate {
           appendedBytes += chunk.count
         }
         
+        // pending write buffer currently not used
         pendingWriteBuffers[centralUUID] = combined
         
         // send combined back to react native layer

@@ -1,32 +1,28 @@
+import { useEventListener } from "expo";
 import { Tabs } from "expo-router";
 import React from "react";
 
 import { HapticTab } from "@/components/haptic-tab";
+import { useRepos } from "@/components/repository-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import BleModule from "@/modules/ble/src/BleModule";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { getRepo } = useRepos();
+  const messagesRepo = getRepo("messagesRepo");
 
-  // const { scan, advertise, permissions } = useBluetooth();
+  useEventListener(BleModule, "onPeripheralReceivedWrite", (message) => {
+    // store in packets repo, background job will process and store in messages repo when ready
+    console.log("onPeripheralReceivedWrite");
+  });
 
-  // const advertiseNow = async () => {
-  //   const isPermissionsEnabled = await permissions();
-  //   if (isPermissionsEnabled) {
-  //     advertise();
-  //   }
-  // };
-
-  // const scanForDevices = async () => {
-  //   const isPermissionsEnabled = await permissions();
-  //   if (isPermissionsEnabled) {
-  //     scan();
-  //   }
-  // };
-
-  // advertiseNow();
-  // scanForDevices();
+  useEventListener(BleModule, "onCentralReceivedNotification", (message) => {
+    // store in packets repo
+    console.log("onCentralReceivedNotification");
+  });
 
   return (
     <Tabs
