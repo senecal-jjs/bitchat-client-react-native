@@ -3,25 +3,26 @@ import { Tabs } from "expo-router";
 import React from "react";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { useRepos } from "@/components/repository-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useMessageService } from "@/hooks/use-message-service";
 import BleModule from "@/modules/ble/src/BleModule";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { getRepo } = useRepos();
-  const messagesRepo = getRepo("messagesRepo");
+  const { handlePacket } = useMessageService();
 
   useEventListener(BleModule, "onPeripheralReceivedWrite", (message) => {
-    // store in packets repo, background job will process and store in messages repo when ready
+    // on packet receive, try to assemble into completed message and push to messages repo
     console.log("onPeripheralReceivedWrite");
+    handlePacket(message.rawBytes);
   });
 
   useEventListener(BleModule, "onCentralReceivedNotification", (message) => {
     // store in packets repo
     console.log("onCentralReceivedNotification");
+    handlePacket(message.rawBytes);
   });
 
   return (

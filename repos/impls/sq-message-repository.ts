@@ -93,6 +93,24 @@ class SQMessageRepository implements MessageRepository {
     }
   }
 
+  async exists(id: UUID): Promise<boolean> {
+    const statement = await this.db.prepareAsync(
+      "SELECT COUNT(*) as count FROM messages WHERE id = $id",
+    );
+
+    try {
+      const result = await statement.executeAsync<{ count: number }>({
+        $id: id,
+      });
+
+      const row = await result.getFirstAsync();
+
+      return row ? row.count > 0 : false;
+    } finally {
+      await statement.finalizeAsync();
+    }
+  }
+
   /**
    * Convert database row to Message object
    * Handles type conversions for boolean fields stored as integers

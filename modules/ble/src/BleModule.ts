@@ -3,9 +3,6 @@ import { NativeModule, requireNativeModule } from "expo";
 import { BleModuleEvents } from "./Ble.types";
 
 declare class BleModule extends NativeModule<BleModuleEvents> {
-  PI: number;
-  hello(): string;
-  setValueAsync(value: string): Promise<void>;
   broadcastPacketAsync(value: Uint8Array): Promise<void>;
 }
 

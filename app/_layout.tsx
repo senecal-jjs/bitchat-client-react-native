@@ -7,7 +7,8 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
-import { RepositoryProvider } from "@/components/repository-context";
+import { MessageProvider } from "@/contexts/message-context";
+import { RepositoryProvider } from "@/contexts/repository-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { migrateDb } from "@/repos/db";
 import * as SQLite from "expo-sqlite";
@@ -25,14 +26,16 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <SQLiteProvider databaseName="bitchat.db" onInit={migrateDb}>
         <RepositoryProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: "modal", title: "Modal" }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
+          <MessageProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="modal"
+                options={{ presentation: "modal", title: "Modal" }}
+              />
+            </Stack>
+            <StatusBar style="auto" />
+          </MessageProvider>
         </RepositoryProvider>
       </SQLiteProvider>
     </ThemeProvider>

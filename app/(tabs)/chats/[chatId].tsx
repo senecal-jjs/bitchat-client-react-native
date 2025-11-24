@@ -15,42 +15,21 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
-import { useRepos } from "@/components/repository-context";
-import BleModule from "@/modules/ble/src/BleModule";
-import { decode, encode } from "@/services/packet-service";
-import {
-  fromBinaryPayload,
-  toBinaryPayload,
-} from "@/services/protocol-service";
-import {
-  BitchatPacket,
-  DeliveryStatus,
-  Message,
-  PacketType,
-} from "@/types/global";
+import { useMessageProvider } from "@/contexts/message-context";
+import { useMessageService } from "@/hooks/use-message-service";
+import { DeliveryStatus, Message } from "@/types/global";
 import { getRandomBytes } from "@/utils/random";
 import { secureFetch, secureStore } from "@/utils/secure-store";
-import { useEventListener } from "expo";
 
 // TODO (create during onboarding)
 getRandomBytes(8).then((bytes) => secureStore("peerId", bytes.toString()));
 
 export default function Chat() {
-  const { getRepo } = useRepos();
-  const messagesRepo = getRepo("messagesRepo");
   const navigation = useNavigation();
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const [peerId, setPeerId] = useState<string | null>(null);
-
-  useEventListener(BleModule, "onPeripheralReceivedWrite", (message) => {
-    console.log("onPeripheralReceivedWrite");
-    decodeMessage(message.rawBytes);
-  });
-
-  useEventListener(BleModule, "onCentralReceivedNotification", (message) => {
-    console.log("onCentralReceivedNotification");
-    decodeMessage(message.rawBytes);
-  });
+  const { sendMessage } = useMessageService();
+  const { messages, setMessages } = useMessageProvider();
 
   useEffect(() => {
     navigation.setOptions({
@@ -69,8 +48,12 @@ export default function Chat() {
   //   };
 
   //   const fetchData = async () => {
-  //     const initialMessages = await messagesRepo.getAll(1);
-  //     setMessages([...messages, ...initialMessages]);
+  //     let newMessages = await messagesRepo.getAll(1);
+  //     newMessages = newMessages.filter(
+  //       (message) => message.timestamp > lastSeen,
+  //     );
+  //     setMessages((prevMessages) => [...prevMessages, ...newMessages]);
+  //     setLastSeen(Date.now());
   //   };
 
   //   initialFetchData(50);
@@ -78,52 +61,13 @@ export default function Chat() {
   //   const intervalId = setInterval(fetchData, 1000);
 
   //   return () => clearInterval(intervalId);
-  // }, []);
-
-  const decodeMessage = (rawBytes: Uint8Array) => {
-    const packet = decode(rawBytes)!;
-    const payload = fromBinaryPayload(packet?.payload);
-    console.log(payload);
-    setMessages([...messages, payload]);
-  };
-
-  const encodeMessage = (
-    message: Message,
-    from: string,
-    to: string,
-  ): Uint8Array => {
-    const encodedMessage = toBinaryPayload(message);
-
-    if (!encodedMessage) {
-      throw Error(`Failed to encode message [messageId: ${message.id}]`);
-    }
-
-    const packet: BitchatPacket = {
-      version: 1,
-      type: PacketType.MESSAGE,
-      senderId: from,
-      recipientId: to,
-      timestamp: Date.now(),
-      payload: encodedMessage,
-      signature: null,
-      allowedHops: 3,
-      route: new Uint8Array(),
-    };
-
-    const encodedPacket = encode(packet);
-
-    if (!encodedPacket) {
-      throw Error(`Failed to encode packet [messageId: ${message.id}]`);
-    }
-
-    return encodedPacket;
-  };
+  // }, [messagesRepo]);
 
   const renderMessage = ({ item }: { item: Message }) => {
     return <ChatBubble message={item} peerId={peerId!} />;
   };
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  // const [messages, setMessages] = useState<Message[]>([]);
 
   // State for the new message input
   const [newMessage, setNewMessage] = useState("");
@@ -148,7 +92,7 @@ export default function Chat() {
 
       setMessages([...messages, newMsg]);
       setNewMessage("");
-      BleModule.broadcastPacketAsync(encodeMessage(newMsg, "from", "to"));
+      sendMessage(newMsg, peerId!, "to");
 
       // scroll to the end of the list to show the new message
       flatListRef.current?.scrollToEnd({ animated: true });

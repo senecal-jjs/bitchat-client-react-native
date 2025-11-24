@@ -30,8 +30,19 @@ async function migrateDb(db: SQLiteDatabase) {
   if (currentDbVersion === 0) {
     console.log("migrating");
     await db.execAsync(`
-PRAGMA journal_mode = 'wal';
-CREATE TABLE messages (id TEXT PRIMARY KEY NOT NULL, sender TEXT NOT NULL, contents TEXT NOT NULL, timestamp INTEGER NOT NULL, is_relay INTEGER NOT NULL, original_sender TEXT, is_private INTEGER NOT NULL, recipient_nickname TEXT, sender_peer_id TEXT, delivery_status INTEGER);
+      PRAGMA journal_mode = 'wal';
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY NOT NULL, 
+        sender TEXT NOT NULL, 
+        contents TEXT NOT NULL, 
+        timestamp INTEGER NOT NULL, 
+        is_relay INTEGER NOT NULL, 
+        original_sender TEXT,
+        is_private INTEGER NOT NULL,
+        recipient_nickname TEXT,
+        sender_peer_id TEXT,
+        delivery_status INTEGER
+      );
 `);
     currentDbVersion = 1;
   }
