@@ -15,26 +15,22 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
-import { useRepos } from "@/components/repository-context";
-import { COLOR_CHARACTERISTIC_UUID, DATA_SERVICE_UUID } from "@/hooks/use-ble";
-import useMessaging from "@/hooks/use-ble-messaging";
+import { useMessageProvider } from "@/contexts/message-context";
+import { useMessageService } from "@/hooks/use-message-service";
 import { DeliveryStatus, Message } from "@/types/global";
-import { getRandomBytes } from "@/utils/random";
-import { secureFetch, secureStore } from "@/utils/secure-store";
+import { secureFetch } from "@/utils/secure-store";
 
 // TODO (create during onboarding)
-getRandomBytes(8).then((bytes) => secureStore("peerId", bytes.toString()));
+// getRandomBytes(8).then((bytes) => secureStore("peerId", bytes.toString()));
 
 export default function Chat() {
-  const { getRepo } = useRepos();
-  const messagesRepo = getRepo("messagesRepo");
   const navigation = useNavigation();
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
-  const { sendMessage } = useMessaging(
-    DATA_SERVICE_UUID,
-    COLOR_CHARACTERISTIC_UUID,
-  );
   const [peerId, setPeerId] = useState<string | null>(null);
+  const { sendMessage } = useMessageService();
+  const { messages } = useMessageProvider();
+  // A ref to automatically scroll the message list
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -43,63 +39,16 @@ export default function Chat() {
   }, [navigation]);
 
   useEffect(() => {
+    console.log("fetching peer id");
     secureFetch("peerId").then((peerId) => setPeerId(peerId));
-  }, []);
-
-  useEffect(() => {
-    const initialFetchData = async (limit: number) => {
-      const initialMessages = await messagesRepo.getAll(limit);
-      setMessages(initialMessages);
-    };
-
-    const fetchData = async () => {
-      const initialMessages = await messagesRepo.getAll(1);
-      setMessages([...messages, ...initialMessages]);
-    };
-
-    initialFetchData(50);
-
-    const intervalId = setInterval(fetchData, 1000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   const renderMessage = ({ item }: { item: Message }) => {
     return <ChatBubble message={item} peerId={peerId!} />;
   };
 
-  const [messages, setMessages] = useState<Message[]>([
-    // {
-    //   id: Math.random().toString(),
-    //   sender: "1",
-    //   contents: "hello",
-    //   timestamp: Date.now(),
-    //   isRelay: false,
-    //   originalSender: "1",
-    //   isPrivate: true,
-    //   recipientNickname: "ace",
-    //   senderPeerId: "1",
-    //   deliveryStatus: DeliveryStatus.SENT,
-    // },
-    // {
-    //   id: Math.random().toString(),
-    //   sender: "1",
-    //   contents: "hello back",
-    //   timestamp: Date.now(),
-    //   isRelay: false,
-    //   originalSender: "1",
-    //   isPrivate: true,
-    //   recipientNickname: "ace",
-    //   senderPeerId: peerId,
-    //   deliveryStatus: DeliveryStatus.SENT,
-    // },
-  ]);
-
   // State for the new message input
   const [newMessage, setNewMessage] = useState("");
-
-  // A ref to automatically scroll the message list
-  const flatListRef = useRef<FlatList>(null);
 
   const handleSend = () => {
     if (newMessage.trim()) {
@@ -116,9 +65,8 @@ export default function Chat() {
         deliveryStatus: DeliveryStatus.SENDING,
       };
 
-      setMessages([...messages, newMsg]);
       setNewMessage("");
-      sendMessage(newMsg, peerId!, "recip");
+      sendMessage(newMsg, peerId!, "to");
 
       // scroll to the end of the list to show the new message
       flatListRef.current?.scrollToEnd({ animated: true });

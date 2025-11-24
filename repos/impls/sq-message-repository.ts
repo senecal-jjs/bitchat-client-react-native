@@ -68,7 +68,7 @@ class SQMessageRepository implements MessageRepository {
 
   async getAll(limit: number): Promise<Message[]> {
     const statement = await this.db.prepareAsync(
-      "SELECT * FROM messages ORDER BY timestamp DESC LIMIT $limit",
+      "SELECT * FROM messages ORDER BY timestamp ASC LIMIT $limit",
     );
 
     try {
@@ -88,6 +88,24 @@ class SQMessageRepository implements MessageRepository {
       const rows = await result.getAllAsync();
 
       return rows.map((row) => this.mapRowToMessage(row));
+    } finally {
+      await statement.finalizeAsync();
+    }
+  }
+
+  async exists(id: UUID): Promise<boolean> {
+    const statement = await this.db.prepareAsync(
+      "SELECT COUNT(*) as count FROM messages WHERE id = $id",
+    );
+
+    try {
+      const result = await statement.executeAsync<{ count: number }>({
+        $id: id,
+      });
+
+      const row = await result.getFirstAsync();
+
+      return row ? row.count > 0 : false;
     } finally {
       await statement.finalizeAsync();
     }

@@ -7,8 +7,8 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
-import { BluetoothProvider } from "@/components/bluetooth-context";
-import { RepositoryProvider } from "@/components/repository-context";
+import { MessageProvider } from "@/contexts/message-context";
+import { RepositoryProvider } from "@/contexts/repository-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { migrateDb } from "@/repos/db";
 import * as SQLite from "expo-sqlite";
@@ -26,7 +26,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <SQLiteProvider databaseName="bitchat.db" onInit={migrateDb}>
         <RepositoryProvider>
-          <BluetoothProvider>
+          <MessageProvider>
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
@@ -35,7 +35,7 @@ export default function RootLayout() {
               />
             </Stack>
             <StatusBar style="auto" />
-          </BluetoothProvider>
+          </MessageProvider>
         </RepositoryProvider>
       </SQLiteProvider>
     </ThemeProvider>

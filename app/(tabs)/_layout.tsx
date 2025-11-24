@@ -1,33 +1,29 @@
+import { useEventListener } from "expo";
 import { Tabs } from "expo-router";
 import React from "react";
 
-import { useBluetooth } from "@/components/bluetooth-context";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useMessageService } from "@/hooks/use-message-service";
+import BleModule from "@/modules/ble/src/BleModule";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { handlePacket } = useMessageService();
 
-  const { scan, advertise, permissions } = useBluetooth();
+  useEventListener(BleModule, "onPeripheralReceivedWrite", (message) => {
+    // on packet receive, try to assemble into completed message and push to messages repo
+    console.log("onPeripheralReceivedWrite");
+    handlePacket(message.rawBytes);
+  });
 
-  const advertiseNow = async () => {
-    const isPermissionsEnabled = await permissions();
-    if (isPermissionsEnabled) {
-      advertise();
-    }
-  };
-
-  const scanForDevices = async () => {
-    const isPermissionsEnabled = await permissions();
-    if (isPermissionsEnabled) {
-      scan();
-    }
-  };
-
-  advertiseNow();
-  scanForDevices();
+  useEventListener(BleModule, "onCentralReceivedNotification", (message) => {
+    // store in packets repo
+    console.log("onCentralReceivedNotification");
+    handlePacket(message.rawBytes);
+  });
 
   return (
     <Tabs
