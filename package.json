@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@hpke/chacha20poly1305": "^1.7.1",
+    "@hpke/hybridkem-x-wing": "^0.6.1",
+    "@noble/post-quantum": "^0.5.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
@@ -52,7 +55,8 @@
     "react-native-worklets": "0.5.1",
     "sqlite": "^5.1.1",
     "sqlite-async": "^1.2.2",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "ts-mls": "^1.4.2"
   },
   "devDependencies": {
     "@types/jest": "29.5.14",
