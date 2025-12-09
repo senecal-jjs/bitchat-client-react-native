@@ -133,17 +133,20 @@ export function useCipherService() {
   };
 
   const joinExistingGroup = async (
+    groupId: string,
     welcome: Welcome,
     outsiderKeyPackage: MLSKeyPackage,
-  ): Promise<ClientState> => {
+  ): Promise<string> => {
     const impl = await ensureImpl();
-    return await joinGroup(
+    const group = await joinGroup(
       welcome,
       outsiderKeyPackage.publicPackage,
       outsiderKeyPackage.privatePackage,
       emptyPskIndex,
       impl,
     );
+    updateClientState(groupId, group);
+    return groupId;
   };
 
   const addPeer = async (
