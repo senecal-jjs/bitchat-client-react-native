@@ -406,6 +406,99 @@ export class Member {
   }
 
   /**
+   * Refresh keys for a member and update ancestor path
+   */
+  async keyRefresh(
+    groupName: string,
+    nodeId: number,
+    _pseudo: string,
+  ): Promise<UpdateMessage> {
+    let key = new Uint8Array(32);
+    const group = this.groups.get(groupName);
+    if (!group) throw new Error(`Group ${groupName} not found`);
+
+    const tree = group.ratchetTree;
+    const root = tree.getNodeById(tree.height, 1);
+
+    if (root?.publicKey && root?.privateKey) {
+      const nodeSecret = NodeSecret.derive(root.publicKey, root.privateKey);
+      key = SymmetricKey.derive(nodeSecret) as Uint8Array<ArrayBuffer>;
+    }
+
+    // Generate new key material for the member
+    const newMemberKeyMaterial = UPKEMaterial.generate();
+    const publicKey = newMemberKeyMaterial.publicKey;
+
+    // Get ancestors
+    const nodes = tree.getAncestors(tree.height, nodeId);
+    const ancestors = nodes.map((n) => n.id);
+
+    const ancestorsNewPublicMaterial: Uint8Array[] = [];
+    const ancestorsPathUpdate: { point: Uint8Array; data: Uint8Array }[] = [];
+
+    for (const ancestorId of ancestors) {
+      const pathSecret = PathSecret.newPathSecret();
+      const newKeyMaterial = PathSecret.deriveKeyPair(pathSecret);
+
+      const ancestor = tree.getNodeById(tree.height, ancestorId);
+      if (!ancestor) continue;
+
+      ancestorsNewPublicMaterial.push(newKeyMaterial.publicKey.toBytes());
+
+      if (ancestor.publicKey && ancestor.privateKey) {
+        // Encrypt secret under previous public key
+        const previousPublicKey = ancestor.publicKey;
+        const { ciphertext } = previousPublicKey.encrypt(pathSecret);
+        ancestorsPathUpdate.push(ciphertext);
+
+        // Update with path secret
+        const pathKeyMaterial = PathSecret.updateWithPathSecret(
+          pathSecret,
+          ancestor.publicKey,
+          ancestor.privateKey,
+        );
+
+        ancestor.publicKey = pathKeyMaterial.publicKey;
+        ancestor.privateKey = pathKeyMaterial.privateKey;
+        ancestor.nodeSecret = NodeSecret.derive(
+          ancestor.publicKey,
+          ancestor.privateKey,
+        );
+      } else {
+        ancestor.publicKey = newKeyMaterial.publicKey;
+        ancestor.privateKey = newKeyMaterial.privateKey;
+        ancestor.nodeSecret = NodeSecret.derive(
+          ancestor.publicKey,
+          ancestor.privateKey,
+        );
+      }
+    }
+
+    const creds = tree.getNodeById(tree.height, nodeId)?.credential;
+    if (!creds) throw new Error("No credentials");
+
+    // Update the member node with new key material
+    const memberNode = tree.getNodeById(tree.height, nodeId);
+    if (memberNode) {
+      memberNode.publicKey = publicKey;
+      memberNode.privateKey = newMemberKeyMaterial.privateKey;
+    }
+
+    const pathUpdateMessage: UpdateMaterial = {
+      ancestors,
+      publicPathMaterial: ancestorsNewPublicMaterial,
+      privPathMaterial: ancestorsPathUpdate,
+      publicKey: publicKey.toBytes(),
+      credentials: creds,
+    };
+
+    const message = new TextEncoder().encode(JSON.stringify(pathUpdateMessage));
+    const { ciphertext, nonce } = SymmetricKey.encrypt(message, key);
+
+    return { ciphertext, nonce };
+  }
+
+  /**
    * Apply update path from another member
    */
   async applyUpdatePath(
@@ -615,9 +708,30 @@ export class Member {
       blankMessage.nonce,
     );
 
-    const messages: BlankMessage[] = JSON.parse(
+    const parsedMessages = JSON.parse(
       new TextDecoder().decode(decryptedBlankMessage),
     );
+
+    // Convert objects back to Uint8Arrays
+    const messages: BlankMessage[] = parsedMessages.map((msg: any) => ({
+      blankedNode: msg.blankedNode,
+      encryptUnder: msg.encryptUnder,
+      public: msg.public
+        ? {
+            point: new Uint8Array(Object.values(msg.public.point)),
+            data: new Uint8Array(Object.values(msg.public.data)),
+          }
+        : undefined,
+      private: msg.private
+        ? {
+            point: new Uint8Array(Object.values(msg.private.point)),
+            data: new Uint8Array(Object.values(msg.private.data)),
+          }
+        : undefined,
+    }));
+
+    console.log("blank messages");
+    console.log(messages[0].public);
 
     if (!this.id) return;
 
