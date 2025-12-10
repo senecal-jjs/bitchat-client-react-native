@@ -3,18 +3,21 @@
  * Uses Ristretto255 (Curve25519), Ed25519, RSA, and AES-256-GCM
  */
 
-import { uint8ArrayToHexString } from "@/utils/string";
 import { gcm } from "@noble/ciphers/aes.js";
 import { ed25519, ristretto255 } from "@noble/curves/ed25519.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256, sha512 } from "@noble/hashes/sha2.js";
 import { getRandomBytes } from "expo-crypto";
-// import { RSA } from "react-native-rsa-native";
 // @ts-ignore
-import { Crypt, RSA } from "hybrid-crypto-js";
+// import { Crypt, RSA } from "hybrid-crypto-js";
+// import { RSA, Hash } from "react-native-fast-rsa";
+import { uint8ArrayToHexString } from "@/utils/string";
+import { RSA } from "react-native-rsa-native";
 import { RistrettoPoint } from "./RistrettoPoint";
 import { Scalar } from "./scalar";
 import { Ciphertext } from "./types";
+
+// RSA.useJSI = false;
 
 // Note: For RSA operations, we'll need to use react-native-rsa-native or similar
 // For AES-GCM, we'll use expo-crypto or similar
@@ -247,20 +250,26 @@ export class RSAKeyPair {
   constructor(publicKey: string, privateKey: string) {
     this.rsaPublicKey = publicKey;
     this.rsaPrivateKey = privateKey;
-    this.crypt = new Crypt();
+    // this.crypt = new Crypt();
   }
 
   static async generate(): Promise<RSAKeyPair> {
-    const rsa = new RSA({ keySize: 4096 });
-    const keypair = await rsa.generateKeyPairAsync();
-    return new RSAKeyPair(keypair.publicKey, keypair.privateKey);
+    // const rsa = new RSA({ keySize: 4096 });
+    // const keypair = await rsa.generateKeyPairAsync();
+    // return new RSAKeyPair(keypair.publicKey, keypair.privateKey);
+    const keys = await RSA.generateKeys(2048);
+    return new RSAKeyPair(keys.public, keys.private);
   }
 
   async encrypt(data: Uint8Array): Promise<Uint8Array> {
     const encoder = new TextEncoder();
-    const encrypted = this.crypt.encrypt(
-      this.rsaPublicKey,
+    // const encrypted = this.crypt.encrypt(
+    //   this.rsaPublicKey,
+    //   uint8ArrayToHexString(data),
+    // );
+    const encrypted = await RSA.encrypt(
       uint8ArrayToHexString(data),
+      this.rsaPublicKey,
     );
     return encoder.encode(encrypted);
   }
@@ -269,8 +278,9 @@ export class RSAKeyPair {
     // TODO: Implement RSA-PKCS1v15 decryption
     const decoder = new TextDecoder();
     const decoded = decoder.decode(ciphertext);
-    const decrypted = this.crypt.decrypt(this.rsaPrivateKey, decoded);
-    const buffer = Buffer.from(decrypted.message, "hex");
+    // const decrypted = this.crypt.decrypt(this.rsaPrivateKey, decoded);
+    const decrypted = await RSA.decrypt(decoded, this.rsaPrivateKey);
+    const buffer = Buffer.from(decrypted, "hex");
     return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   }
 }

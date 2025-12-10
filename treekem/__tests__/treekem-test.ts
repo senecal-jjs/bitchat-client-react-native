@@ -2,6 +2,21 @@ import { Member } from "../member";
 import { Credentials } from "../types";
 import { RSAKeyPair, SignatureMaterial, SymmetricKey } from "../upke";
 
+jest.mock("react-native-rsa-native", () => ({
+  RSA: {
+    generateKeys: jest.fn((keySize) =>
+      Promise.resolve({
+        public: `-----BEGIN PUBLIC KEY-----\nMockPublicKey${keySize}\n-----END PUBLIC KEY-----`,
+        private: `-----BEGIN PRIVATE KEY-----\nMockPrivateKey${keySize}\n-----END PRIVATE KEY-----`,
+      }),
+    ),
+    encrypt: jest.fn((text, publicKey) => Promise.resolve(`encrypted_${text}`)),
+    decrypt: jest.fn((encryptedText, privateKey) =>
+      Promise.resolve(encryptedText.replace("encrypted_", "")),
+    ),
+  },
+}));
+
 describe("TreeKEM Member Tests", () => {
   test("test_new_member", async () => {
     // We want to test the attributes of a member are valid. Key material and pseudonym
