@@ -14,7 +14,7 @@ export function serializeCredentialsForQR(credentials: Credentials): string {
     ),
     pseudonym: credentials.pseudonym,
     signature: Buffer.from(credentials.signature).toString("base64"),
-    rsaPublicKey: credentials.rsaPublicKey,
+    ecdhPublicKey: Buffer.from(credentials.ecdhPublicKey).toString("base64"),
   };
 
   return JSON.stringify(serialized);
@@ -30,6 +30,6 @@ export function deserializeCredentialsFromQR(data: string): Credentials {
     verificationKey: Buffer.from(serialized.verificationKey, "base64"),
     pseudonym: serialized.pseudonym,
     signature: Buffer.from(serialized.signature, "base64"),
-    rsaPublicKey: serialized.rsaPublicKey,
+    ecdhPublicKey: Buffer.from(serialized.ecdhPublicKey, "base64"),
   };
 }

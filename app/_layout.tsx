@@ -12,7 +12,7 @@ import { RepositoryProvider } from "@/contexts/repository-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { migrateDb } from "@/repos/db";
 import { Credentials, SerializedCredentials } from "@/treekem/types";
-import { RSAKeyPair, SignatureMaterial } from "@/treekem/upke";
+import { ECDHKeyPair, SignatureMaterial } from "@/treekem/upke";
 import { generateRandomNameCapitalized } from "@/utils/names";
 import { secureFetch, secureStore } from "@/utils/secure-store";
 import { Buffer } from "buffer";
@@ -25,7 +25,7 @@ global.Buffer = Buffer;
 
 const CREDENTIALS_KEY = "treekem_credentials";
 const SIGNING_MATERIAL_KEY = "treekem_signing_material";
-const RSA_KEYPAIR_KEY = "treekem_rsa_keypair";
+const ECDH_KEYPAIR_KEY = "treekem_ecdh_keypair";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -46,7 +46,7 @@ export default function RootLayout() {
           verificationKey: Buffer.from(serialized.verificationKey, "base64"),
           pseudonym: serialized.pseudonym,
           signature: Buffer.from(serialized.signature, "base64"),
-          rsaPublicKey: serialized.rsaPublicKey,
+          ecdhPublicKey: Buffer.from(serialized.ecdhPublicKey, "base64"),
         };
 
         console.log("Loaded existing credentials for:", creds.pseudonym);
@@ -59,10 +59,10 @@ export default function RootLayout() {
 
         console.log("generated signing material");
 
-        // Generate RSA keypair (4096-bit)
-        const rsaKeyPair = await RSAKeyPair.generate();
+        // Generate ECDH keypair (X25519)
+        const ecdhKeyPair = ECDHKeyPair.generate();
 
-        console.log("generated RSA keypair");
+        console.log("generated ECDH keypair");
 
         // Create signature
         const signature = signingMaterial.sign(signingMaterial.publicKey);
@@ -76,7 +76,7 @@ export default function RootLayout() {
           verificationKey: signingMaterial.publicKey,
           pseudonym: newPseudonym,
           signature,
-          rsaPublicKey: rsaKeyPair.rsaPublicKey,
+          ecdhPublicKey: ecdhKeyPair.publicKey,
         };
 
         // Serialize for storage
@@ -86,7 +86,7 @@ export default function RootLayout() {
           ),
           pseudonym: creds.pseudonym,
           signature: Buffer.from(creds.signature).toString("base64"),
-          rsaPublicKey: creds.rsaPublicKey,
+          ecdhPublicKey: Buffer.from(creds.ecdhPublicKey).toString("base64"),
         };
 
         // Store credentials
@@ -105,12 +105,12 @@ export default function RootLayout() {
           }),
         );
 
-        // Store RSA keypair (private key)
+        // Store ECDH keypair (private key)
         await secureStore(
-          RSA_KEYPAIR_KEY,
+          ECDH_KEYPAIR_KEY,
           JSON.stringify({
-            publicKey: rsaKeyPair.rsaPublicKey,
-            privateKey: rsaKeyPair.rsaPrivateKey,
+            publicKey: Buffer.from(ecdhKeyPair.publicKey).toString("base64"),
+            privateKey: Buffer.from(ecdhKeyPair.privateKey).toString("base64"),
           }),
         );
 

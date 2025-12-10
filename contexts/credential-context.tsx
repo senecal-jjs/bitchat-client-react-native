@@ -1,5 +1,5 @@
 import { Credentials, SerializedCredentials } from "@/treekem/types";
-import { RSAKeyPair, SignatureMaterial } from "@/treekem/upke";
+import { ECDHKeyPair, SignatureMaterial } from "@/treekem/upke";
 import { generateRandomNameCapitalized } from "@/utils/names";
 import { secureFetch, secureStore } from "@/utils/secure-store";
 import React, {
@@ -12,7 +12,7 @@ import React, {
 
 const CREDENTIALS_KEY = "treekem_credentials";
 const SIGNING_MATERIAL_KEY = "treekem_signing_material";
-const RSA_KEYPAIR_KEY = "treekem_rsa_keypair";
+const ECDH_KEYPAIR_KEY = "treekem_ecdh_keypair";
 
 interface CredentialContextType {
   credentials: Credentials | null;
@@ -49,7 +49,7 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
           verificationKey: Buffer.from(serialized.verificationKey, "base64"),
           pseudonym: serialized.pseudonym,
           signature: Buffer.from(serialized.signature, "base64"),
-          rsaPublicKey: serialized.rsaPublicKey,
+          ecdhPublicKey: Buffer.from(serialized.ecdhPublicKey, "base64"),
         };
 
         setCredentials(creds);
@@ -76,8 +76,8 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
       // Generate signing material (Ed25519)
       const signingMaterial = SignatureMaterial.generate();
 
-      // Generate RSA keypair (4096-bit)
-      const rsaKeyPair = await RSAKeyPair.generate();
+      // Generate ECDH keypair (X25519)
+      const ecdhKeyPair = ECDHKeyPair.generate();
 
       // Create signature
       const signature = signingMaterial.sign(signingMaterial.publicKey);
@@ -87,7 +87,7 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
         verificationKey: signingMaterial.publicKey,
         pseudonym: newPseudonym,
         signature,
-        rsaPublicKey: rsaKeyPair.rsaPublicKey,
+        ecdhPublicKey: ecdhKeyPair.publicKey,
       };
 
       // Serialize for storage
@@ -95,7 +95,7 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
         verificationKey: Buffer.from(creds.verificationKey).toString("base64"),
         pseudonym: creds.pseudonym,
         signature: Buffer.from(creds.signature).toString("base64"),
-        rsaPublicKey: creds.rsaPublicKey,
+        ecdhPublicKey: Buffer.from(creds.ecdhPublicKey).toString("base64"),
       };
 
       // Store credentials
@@ -112,12 +112,12 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
         }),
       );
 
-      // Store RSA keypair (private key)
+      // Store ECDH keypair (private key)
       await secureStore(
-        RSA_KEYPAIR_KEY,
+        ECDH_KEYPAIR_KEY,
         JSON.stringify({
-          publicKey: rsaKeyPair.rsaPublicKey,
-          privateKey: rsaKeyPair.rsaPrivateKey,
+          publicKey: Buffer.from(ecdhKeyPair.publicKey).toString("base64"),
+          privateKey: Buffer.from(ecdhKeyPair.privateKey).toString("base64"),
         }),
       );
 
@@ -165,7 +165,9 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
         ),
         pseudonym: updatedCreds.pseudonym,
         signature: Buffer.from(updatedCreds.signature).toString("base64"),
-        rsaPublicKey: updatedCreds.rsaPublicKey,
+        ecdhPublicKey: Buffer.from(updatedCreds.ecdhPublicKey).toString(
+          "base64",
+        ),
       };
 
       await secureStore(CREDENTIALS_KEY, JSON.stringify(serialized));

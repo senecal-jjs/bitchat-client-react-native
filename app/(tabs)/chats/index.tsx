@@ -54,7 +54,7 @@ export default function TabTwoScreen() {
           verificationKey: Buffer.from(serialized.verificationKey, "base64"),
           pseudonym: serialized.pseudonym,
           signature: Buffer.from(serialized.signature, "base64"),
-          rsaPublicKey: serialized.rsaPublicKey,
+          ecdhPublicKey: Buffer.from(serialized.ecdhPublicKey, "base64"),
         };
 
         setCredentials(creds);
@@ -180,7 +180,7 @@ export default function TabTwoScreen() {
                   <CredentialsQR
                     credentials={credentials}
                     title="Scan to Add Me"
-                    size={300}
+                    size={250}
                   />
                   <View style={styles.shareButtonContainer}>
                     <Pressable style={styles.shareButton}>
