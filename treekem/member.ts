@@ -880,17 +880,47 @@ export class Member {
     const serializedGroups: [string, SerializedGroup][] = [];
 
     for (const [groupName, group] of this.groups.entries()) {
-      const neighborId = group.ratchetTree.getLeftmostOpenLeaf(
-        group.ratchetTree.height,
-      );
+      // Collect ALL public keys, private keys, and credentials from the tree
+      const publicKeys = new Map<number, string>();
+      const privateKeys = new Map<number, string>();
+      const credentials = new Map<number, SerializedCredentials>();
 
-      if (!neighborId || !this.id) throw new Error("Invalid state");
+      const allNodes = group.ratchetTree.getAllNodes(group.ratchetTree.height);
 
-      const ancestors = group.ratchetTree.getAncestorIds(this.id);
-      const neighborAncestors = group.ratchetTree.getAncestorIds(neighborId);
-
-      const { publicKeys, privateKeys, credentials } =
-        group.ratchetTree.serializeTree(this.id, ancestors, neighborAncestors);
+      for (const nodeId of allNodes) {
+        const node = group.ratchetTree.getNodeById(
+          group.ratchetTree.height,
+          nodeId,
+        );
+        if (node) {
+          if (node.publicKey) {
+            publicKeys.set(
+              nodeId,
+              Buffer.from(node.publicKey.toBytes()).toString("base64"),
+            );
+          }
+          if (node.privateKey) {
+            privateKeys.set(
+              nodeId,
+              Buffer.from(node.privateKey.toBytes()).toString("base64"),
+            );
+          }
+          if (node.credential) {
+            credentials.set(nodeId, {
+              verificationKey: Buffer.from(
+                node.credential.verificationKey,
+              ).toString("base64"),
+              pseudonym: node.credential.pseudonym,
+              signature: Buffer.from(node.credential.signature).toString(
+                "base64",
+              ),
+              ecdhPublicKey: Buffer.from(
+                node.credential.ecdhPublicKey,
+              ).toString("base64"),
+            });
+          }
+        }
+      }
 
       const serializedTree: SerializedTree = {
         groupName,
@@ -963,7 +993,10 @@ export class Member {
     // Deserialize groups
     for (const [groupName, serializedGroup] of serialized.groups) {
       const tree = BinaryTree.deserializeTree(
-        serializedGroup.ratchetTree.publicKeys,
+        new Map(serializedGroup.ratchetTree.publicKeys),
+        new Map(serializedGroup.ratchetTree.privateKeys),
+        new Map(serializedGroup.ratchetTree.credentials),
+        serializedGroup.ratchetTree.capacity,
       );
       const group = new Group(serializedGroup.threshold, tree);
       group.admins = [...serializedGroup.admins];

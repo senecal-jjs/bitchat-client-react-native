@@ -166,7 +166,7 @@ describe("TreeKEM Member Tests", () => {
 
   test("test_add_to_group", async () => {
     // We want to test the functionality of adding a member to the leftmost open node
-    const member = await Member.create("Alice");
+    let member = await Member.create("Alice");
     member.createGroup(2, "anonymous", 1);
     member.addToGroup("anonymous");
 
@@ -592,7 +592,7 @@ describe("TreeKEM Member Tests", () => {
   });
 
   test("test_join_group", async () => {
-    const member = await Member.create("Bob");
+    let member = await Member.create("Bob");
     const member2 = await Member.create("Alice");
 
     member.createGroup(2, "anonymous", 1);
@@ -612,6 +612,10 @@ describe("TreeKEM Member Tests", () => {
     // Test that there are two members
     const aliceGroup = member2.groups.get("anonymous");
     expect(aliceGroup).toBeDefined();
+
+    // additional test for member state serialization
+    const json = member.toJSON();
+    member = Member.fromJSON(json);
 
     if (aliceGroup) {
       const aliceTree = aliceGroup.ratchetTree;
@@ -638,12 +642,15 @@ describe("TreeKEM Member Tests", () => {
 
       if (bobGroup) {
         const bobTree = bobGroup.ratchetTree;
+
         const { ciphertext } = aliceTree
           .getNodeById(aliceTree.height, 2)!
           .publicKey!.encrypt(message);
+
         const { message: m } = bobTree
           .getNodeById(aliceTree.height, 2)!
           .privateKey!.decrypt(ciphertext);
+
         expect(m).toEqual(message);
 
         // Test that Bob's tree doesn't yet have Alice's key info
