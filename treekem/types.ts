@@ -56,3 +56,20 @@ export interface Ciphertext {
   point: Uint8Array;
   data: Uint8Array;
 }
+
+export interface SerializedGroup {
+  threshold: number;
+  admins: number[];
+  ratchetTree: SerializedTree;
+}
+
+export interface SerializedMember {
+  pseudonym: string;
+  ecdhPublicKey: string; // base64
+  ecdhPrivateKey: string; // base64
+  groups: [string, SerializedGroup][]; // Map entries
+  id: number | null;
+  credential: SerializedCredentials;
+  signingKey: string; // base64
+  messageCounter: number;
+}

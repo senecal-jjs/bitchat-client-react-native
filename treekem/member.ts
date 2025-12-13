@@ -8,6 +8,9 @@ import {
   BlankMessage,
   Ciphertext,
   Credentials,
+  SerializedCredentials,
+  SerializedGroup,
+  SerializedMember,
   SerializedTree,
   UpdateMaterial,
   UpdateMessage,
@@ -868,5 +871,87 @@ export class Member {
     }
 
     return plaintext;
+  }
+
+  /**
+   * Serialize member to JSON-compatible format
+   */
+  toJSON(): SerializedMember {
+    const serializedGroups: [string, SerializedGroup][] = [];
+
+    for (const [groupName, group] of this.groups.entries()) {
+      const serializedTree = group.ratchetTree.serialize(
+        groupName,
+        group.threshold,
+        group.admins,
+        this.credential,
+      );
+
+      const serializedGroup: SerializedGroup = {
+        threshold: group.threshold,
+        admins: [...group.admins],
+        ratchetTree: serializedTree,
+      };
+
+      serializedGroups.push([groupName, serializedGroup]);
+    }
+
+    const serializedCredential: SerializedCredentials = {
+      verificationKey: Buffer.from(this.credential.verificationKey).toString(
+        "base64",
+      ),
+      pseudonym: this.credential.pseudonym,
+      signature: Buffer.from(this.credential.signature).toString("base64"),
+      ecdhPublicKey: Buffer.from(this.credential.ecdhPublicKey).toString(
+        "base64",
+      ),
+    };
+
+    return {
+      pseudonym: this.pseudonym,
+      ecdhPublicKey: Buffer.from(this.ecdhPublicKey).toString("base64"),
+      ecdhPrivateKey: Buffer.from(this.ecdhPrivateKey).toString("base64"),
+      groups: serializedGroups,
+      id: this.id,
+      credential: serializedCredential,
+      signingKey: Buffer.from(this.signingKey).toString("base64"),
+      messageCounter: this.messageCounter,
+    };
+  }
+
+  /**
+   * Deserialize member from JSON-compatible format
+   */
+  static fromJSON(serialized: SerializedMember): Member {
+    const credential: Credentials = {
+      verificationKey: Buffer.from(
+        serialized.credential.verificationKey,
+        "base64",
+      ),
+      pseudonym: serialized.credential.pseudonym,
+      signature: Buffer.from(serialized.credential.signature, "base64"),
+      ecdhPublicKey: Buffer.from(serialized.credential.ecdhPublicKey, "base64"),
+    };
+
+    const member = new Member(
+      serialized.pseudonym,
+      Buffer.from(serialized.ecdhPublicKey, "base64"),
+      Buffer.from(serialized.ecdhPrivateKey, "base64"),
+      credential,
+      Buffer.from(serialized.signingKey, "base64"),
+    );
+
+    member.id = serialized.id;
+    member.messageCounter = serialized.messageCounter;
+
+    // Deserialize groups
+    for (const [groupName, serializedGroup] of serialized.groups) {
+      const tree = BinaryTree.deserialize(serializedGroup.ratchetTree);
+      const group = new Group(serializedGroup.threshold, tree);
+      group.admins = [...serializedGroup.admins];
+      member.groups.set(groupName, group);
+    }
+
+    return member;
   }
 }

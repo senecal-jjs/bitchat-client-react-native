@@ -1,8 +1,9 @@
 import ContactList from "@/components/contact-list";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useGroupCreation } from "@/contexts/group-creation-context";
 import { Contact } from "@/repos/specs/contacts-repository";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   Animated,
   Pressable,
@@ -15,7 +16,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export default function NewGroupScreen() {
   const router = useRouter();
-  const [selectedMembers, setSelectedMembers] = useState<Contact[]>([]);
+  const { selectedMembers, setSelectedMembers } = useGroupCreation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -31,7 +32,9 @@ export default function NewGroupScreen() {
   };
 
   const handleNextPress = () => {
-    console.log("next pressed");
+    router.navigate({
+      pathname: "/name-group",
+    });
   };
 
   const onContactSelect = (contact: Contact) => {
@@ -56,6 +59,10 @@ export default function NewGroupScreen() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <View style={styles.modalHeader}>
+          <Pressable onPress={handleClose} style={styles.backButton}>
+            <IconSymbol size={25} name="chevron.left" color={"white"} />
+          </Pressable>
+          <Text style={styles.modalTitle}>{getTitle()}</Text>
           <Animated.View
             style={{
               opacity: fadeAnim,
@@ -74,10 +81,6 @@ export default function NewGroupScreen() {
               <Text style={styles.next}>Next</Text>
             </Pressable>
           </Animated.View>
-          <Text style={styles.modalTitle}>{getTitle()}</Text>
-          <Pressable onPress={handleClose}>
-            <IconSymbol size={32} name="x.circle" color={"white"} />
-          </Pressable>
         </View>
 
         {selectedMembers.length > 0 && (
@@ -126,6 +129,11 @@ export default function NewGroupScreen() {
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    backgroundColor: "rgba(90, 85, 85, 0.3)",
+    borderRadius: "50%",
+    padding: 8,
+  },
   next: {
     color: "white",
     fontSize: 18,

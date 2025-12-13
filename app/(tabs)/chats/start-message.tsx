@@ -21,7 +21,7 @@ export default function StartMessageScreen() {
 
   const handleNewGroupPress = () => {
     router.navigate({
-      pathname: "/chats/select-group",
+      pathname: "/select-group",
     });
   };
 

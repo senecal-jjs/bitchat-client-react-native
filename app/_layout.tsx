@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+import { GroupCreationProvider } from "@/contexts/group-creation-context";
 import { MessageProvider } from "@/contexts/message-context";
 import { RepositoryProvider } from "@/contexts/repository-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -23,9 +24,9 @@ import "react-native-get-random-values";
 
 global.Buffer = Buffer;
 
-const CREDENTIALS_KEY = "treekem_credentials";
-const SIGNING_MATERIAL_KEY = "treekem_signing_material";
-const ECDH_KEYPAIR_KEY = "treekem_ecdh_keypair";
+export const CREDENTIALS_KEY = "treekem_credentials";
+export const SIGNING_MATERIAL_KEY = "treekem_signing_material";
+export const ECDH_KEYPAIR_KEY = "treekem_ecdh_keypair";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -126,14 +127,30 @@ export default function RootLayout() {
       <SQLiteProvider databaseName="bitchat.db" onInit={migrateDb}>
         <RepositoryProvider>
           <MessageProvider>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="modal"
-                options={{ presentation: "modal", title: "Modal" }}
-              />
-            </Stack>
-            <StatusBar style="auto" />
+            <GroupCreationProvider>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="modal"
+                  options={{ presentation: "modal", title: "Modal" }}
+                />
+                <Stack.Screen
+                  name="select-group"
+                  options={{
+                    headerShown: false,
+                    presentation: "card",
+                  }}
+                />
+                <Stack.Screen
+                  name="name-group"
+                  options={{
+                    headerShown: false,
+                    presentation: "card",
+                  }}
+                />
+              </Stack>
+              <StatusBar style="auto" />
+            </GroupCreationProvider>
           </MessageProvider>
         </RepositoryProvider>
       </SQLiteProvider>

@@ -22,22 +22,6 @@ export default function ChatsLayout() {
           animation: "slide_from_bottom",
         }}
       />
-      <Stack.Screen
-        name="select-group"
-        options={{
-          headerShown: false,
-          title: "",
-          animation: "slide_from_right",
-        }}
-      />
-      <Stack.Screen
-        name="name-group"
-        options={{
-          headerShown: false,
-          title: "",
-          animation: "slide_from_right",
-        }}
-      />
     </Stack>
   );
 }
