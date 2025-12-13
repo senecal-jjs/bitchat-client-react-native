@@ -1,7 +1,6 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useCredentials } from "@/contexts/credential-context";
 import { useGroupCreation } from "@/contexts/group-creation-context";
-import { Member } from "@/treekem/member";
-import { secureFetch } from "@/utils/secure-store";
 import { useRouter } from "expo-router";
 import {
   FlatList,
@@ -12,54 +11,35 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import {
-  CREDENTIALS_KEY
-} from "./_layout";
 
 export default function NameGroupScreen() {
   const router = useRouter();
   const { groupName, setGroupName, selectedMembers, reset } =
     useGroupCreation();
+  const { member, saveMember } = useCredentials();
 
   const handleClose = () => {
     router.back();
   };
 
   const handleCreate = async () => {
-    const credentials = await secureFetch(CREDENTIALS_KEY);
-
-    if (!groupName.trim() || selectedMembers.length === 0 || !credentials) {
+    if (!groupName.trim() || selectedMembers.length === 0 || !member) {
       console.error("Missing required data for group creation");
       return;
     }
 
     try {
-      // Load signing material and ECDH keypair from secure store
-      const signingData = await secureFetch("treekem_signing_material");
-      const { privateKey: signingKeyBase64 } = JSON.parse(signingData);
-      const signingKey = Buffer.from(signingKeyBase64, "base64");
-
-      const ecdhData = await secureFetch("treekem_ecdh_keypair");
-      const { privateKey: ecdhPrivateKeyBase64 } = JSON.parse(ecdhData);
-      const ecdhPrivateKey = Buffer.from(ecdhPrivateKeyBase64, "base64");
-
-      // Create member instance for current user
-      const creator = new Member(
-        credentials.pseudonym,
-        credentials.ecdhPublicKey,
-        ecdhPrivateKey,
-        credentials,
-        signingKey,
-      );
-
       // Group capacity = creator + selected members
       const groupCapacity = selectedMembers.length + 1;
 
       // Create the group with TreeKEM
-      creator.createGroup(groupCapacity, groupName, 1);
+      member.createGroup(groupCapacity, groupName, 1);
 
       // Add creator to the group
-      await creator.addToGroup(groupName);
+      await member.addToGroup(groupName);
+
+      // Save updated member state with new group
+      await saveMember();
 
       // TODO: Store group state in database
       // TODO: Generate and send welcome messages to selected members
