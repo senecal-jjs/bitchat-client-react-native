@@ -1,5 +1,7 @@
+import { UUID } from "@/types/utility";
+
 export interface Group {
-  id: number;
+  id: UUID;
   name: string;
   lastActiveAt: number;
   createdAt: number;
@@ -8,13 +10,13 @@ export interface Group {
 
 export default interface GroupsRepository {
   create(name: string): Promise<Group>;
-  get(id: number): Promise<Group | null>;
+  get(id: UUID): Promise<Group | null>;
   getByName(name: string): Promise<Group | null>;
   list(): Promise<Group[]>;
   update(
-    id: number,
+    id: UUID,
     updates: Partial<Pick<Group, "name" | "lastActiveAt">>,
   ): Promise<Group>;
-  delete(id: number): Promise<void>;
-  updateLastActiveAt(id: number): Promise<void>;
+  delete(id: UUID): Promise<void>;
+  updateLastActiveAt(id: UUID): Promise<void>;
 }

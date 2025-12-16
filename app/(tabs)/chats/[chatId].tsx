@@ -15,9 +15,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
-import { useMessageProvider } from "@/contexts/message-context";
+import { useGroupMessages } from "@/hooks/use-group-messages";
 import { useMessageService } from "@/hooks/use-message-service";
-import { DeliveryStatus, Message } from "@/types/global";
+import { Message } from "@/types/global";
 import { secureFetch } from "@/utils/secure-store";
 
 // TODO (create during onboarding)
@@ -28,8 +28,8 @@ export default function Chat() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const [peerId, setPeerId] = useState<string | null>(null);
   const { sendMessage } = useMessageService();
-  const { messages } = useMessageProvider();
-  // A ref to automatically scroll the message list
+  const { messages, isLoading, isLoadingMore, hasMore, loadMore } =
+    useGroupMessages(chatId);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -47,6 +47,21 @@ export default function Chat() {
     return <ChatBubble message={item} peerId={peerId!} />;
   };
 
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <Text style={{ color: "gray" }}>Loading more messages...</Text>
+      </View>
+    );
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  };
+
   // State for the new message input
   const [newMessage, setNewMessage] = useState("");
 
@@ -54,22 +69,14 @@ export default function Chat() {
     if (newMessage.trim()) {
       const newMsg: Message = {
         id: Crypto.randomUUID(),
+        groupId: chatId,
         sender: "1",
         contents: newMessage,
         timestamp: Date.now(),
-        isRelay: false,
-        originalSender: "1",
-        isPrivate: true,
-        recipientNickname: "ace",
-        senderPeerId: peerId,
-        deliveryStatus: DeliveryStatus.SENDING,
       };
 
       setNewMessage("");
       sendMessage(newMsg, peerId!, "to");
-
-      // scroll to the end of the list to show the new message
-      flatListRef.current?.scrollToEnd({ animated: true });
 
       // dismiss the keyboard after sending
       Keyboard.dismiss();
@@ -90,6 +97,16 @@ export default function Chat() {
             showsVerticalScrollIndicator={false}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
+            onContentSizeChange={() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            inverted={false}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+            }}
           />
 
           <View style={styles.inputContainer}>
@@ -149,5 +166,9 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });

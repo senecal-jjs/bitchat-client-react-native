@@ -1,6 +1,7 @@
-import { DeliveryStatus, Message } from "@/types/global";
+import { Message } from "@/types/global";
 import { UUID } from "@/types/utility";
 import * as SQLite from "expo-sqlite";
+import { dbListener } from "../db-listener";
 import MessagesRepository from "../specs/messages-repository";
 import Repository from "../specs/repository";
 
@@ -13,7 +14,7 @@ class SQMessagesRepository implements MessagesRepository, Repository {
 
   async create(message: Message): Promise<Message> {
     const statement = await this.db.prepareAsync(
-      "INSERT INTO messages (id, sender, contents, timestamp, is_relay, original_sender, is_private, recipient_nickname, sender_peer_id, delivery_status) VALUES ($id, $sender, $contents, $timestamp, $isRelay, $originalSender, $isPrivate, $recipientNickname, $senderPeerId, $deliveryStatus)",
+      "INSERT INTO messages (id, sender, contents, timestamp, group_id) VALUES ($id, $sender, $contents, $timestamp, $groupId)",
     );
 
     try {
@@ -22,13 +23,11 @@ class SQMessagesRepository implements MessagesRepository, Repository {
         $sender: message.sender,
         $contents: message.contents,
         $timestamp: message.timestamp,
-        $isRelay: message.isRelay ? 1 : 0,
-        $originalSender: message.originalSender,
-        $isPrivate: message.isPrivate ? 1 : 0,
-        $recipientNickname: message.recipientNickname,
-        $senderPeerId: message.senderPeerId,
-        $deliveryStatus: message.deliveryStatus,
+        $groupId: message.groupId,
       });
+
+      // Notify listeners of the change
+      dbListener.notifyMessageChange();
 
       return message;
     } finally {
@@ -47,12 +46,7 @@ class SQMessagesRepository implements MessagesRepository, Repository {
         sender: string;
         contents: string;
         timestamp: number;
-        isRelay: number;
-        originalSender: string | null;
-        isPrivate: number;
-        recipientNickname: string | null;
-        senderPeerId: string | null;
-        deliveryStatus: DeliveryStatus | null;
+        group_id: string;
       }>({ $id: id });
 
       const row = await result.getFirstAsync();
@@ -78,17 +72,39 @@ class SQMessagesRepository implements MessagesRepository, Repository {
         sender: string;
         contents: string;
         timestamp: number;
-        isRelay: number;
-        originalSender: string | null;
-        isPrivate: number;
-        recipientNickname: string | null;
-        senderPeerId: string | null;
-        deliveryStatus: DeliveryStatus | null;
+        group_id: string;
       }>({ $limit: limit });
 
       const rows = await result.getAllAsync();
 
       return rows.map((row) => this.mapRowToMessage(row));
+    } finally {
+      await statement.finalizeAsync();
+    }
+  }
+
+  async getByGroupId(
+    groupId: string,
+    limit: number,
+    offset: number = 0,
+  ): Promise<Message[]> {
+    const statement = await this.db.prepareAsync(
+      "SELECT * FROM messages WHERE group_id = $groupId ORDER BY timestamp DESC LIMIT $limit OFFSET $offset",
+    );
+
+    try {
+      const result = await statement.executeAsync<{
+        id: string;
+        sender: string;
+        contents: string;
+        timestamp: number;
+        group_id: string;
+      }>({ $groupId: groupId, $limit: limit, $offset: offset });
+
+      const rows = await result.getAllAsync();
+
+      // Reverse to get chronological order (oldest first)
+      return rows.reverse().map((row) => this.mapRowToMessage(row));
     } finally {
       await statement.finalizeAsync();
     }
@@ -114,31 +130,20 @@ class SQMessagesRepository implements MessagesRepository, Repository {
 
   /**
    * Convert database row to Message object
-   * Handles type conversions for boolean fields stored as integers
    */
   private mapRowToMessage(row: {
     id: string;
     sender: string;
     contents: string;
     timestamp: number;
-    isRelay: number;
-    originalSender: string | null;
-    isPrivate: number;
-    recipientNickname: string | null;
-    senderPeerId: string | null;
-    deliveryStatus: DeliveryStatus | null;
+    group_id: string;
   }): Message {
     return {
       id: row.id,
+      groupId: row.group_id,
       sender: row.sender,
       contents: row.contents,
       timestamp: row.timestamp,
-      isRelay: Boolean(row.isRelay),
-      originalSender: row.originalSender,
-      isPrivate: Boolean(row.isPrivate),
-      recipientNickname: row.recipientNickname,
-      senderPeerId: row.senderPeerId,
-      deliveryStatus: row.deliveryStatus,
     };
   }
 }

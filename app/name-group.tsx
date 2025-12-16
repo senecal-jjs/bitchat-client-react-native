@@ -6,8 +6,14 @@ import {
   GroupsRepositoryToken,
   useRepos,
 } from "@/contexts/repository-context";
+import { useMessageService } from "@/hooks/use-message-service";
+import { Contact } from "@/repos/specs/contacts-repository";
 import { GroupMembersRepository } from "@/repos/specs/group-members-repository";
 import GroupsRepository from "@/repos/specs/groups-repository";
+import { Member } from "@/treekem/member";
+import { serializeWelcomeMessage } from "@/treekem/protocol";
+import { DeliveryStatus, Message } from "@/types/global";
+import { randomUUID } from "expo-crypto";
 import { useRouter } from "expo-router";
 import {
   FlatList,
@@ -29,6 +35,7 @@ export default function NameGroupScreen() {
     GroupMembersRepositoryToken,
   );
   const groupsRepo = getRepo<GroupsRepository>(GroupsRepositoryToken);
+  const { sendMessage } = useMessageService();
 
   const handleClose = () => {
     router.back();
@@ -57,6 +64,7 @@ export default function NameGroupScreen() {
 
       selectedMembers.forEach((selection) => {
         groupMembersRepo.add(group.id, selection.id);
+        sendWelcomeMessage(selection, member, groupName);
       });
 
       // TODO: Store group state in database
@@ -77,11 +85,44 @@ export default function NameGroupScreen() {
       );
 
       reset(); // Clear the group members context after creation
-      router.navigate("/chats");
+
+      router.navigate({
+        pathname: "/chats/[chatId]",
+        params: { chatId: group.id },
+      });
     } catch (error) {
       console.error("Failed to create group:", error);
       // TODO: Show error alert to user
     }
+  };
+
+  const sendWelcomeMessage = async (
+    contact: Contact,
+    initiatingMember: Member,
+    groupName: string,
+  ) => {
+    const welcomeMessage = await initiatingMember.sendWelcomeMessage(
+      {
+        verificationKey: contact.verificationKey,
+        pseudonym: contact.pseudonym,
+        signature: contact.signature,
+        ecdhPublicKey: contact.ecdhPublicKey,
+      },
+      groupName,
+    );
+    const payload = serializeWelcomeMessage(welcomeMessage);
+    const message: Message = {
+      id: randomUUID(),
+      sender: "1",
+      contents: payload,
+      timestamp: Date.now(),
+      isRelay: false,
+      originalSender: "1",
+      isPrivate: true,
+      recipientNickname: contact.pseudonym,
+      senderPeerId: "1",
+      deliveryStatus: DeliveryStatus.SENDING,
+    };
   };
 
   return (

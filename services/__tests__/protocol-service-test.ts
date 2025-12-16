@@ -1,4 +1,4 @@
-import { DeliveryStatus, Message } from "@/types/global";
+import { Message } from "@/types/global";
 import {
   fromBinaryPayload,
   toBinaryPayload,
@@ -10,12 +10,6 @@ test("protocol encodes & decodes", () => {
     sender: "2",
     contents: "Hello!",
     timestamp: Date.now(),
-    isRelay: false,
-    originalSender: null,
-    isPrivate: true,
-    recipientNickname: "@ace",
-    senderPeerId: "p2",
-    deliveryStatus: DeliveryStatus.SENDING,
   };
 
   const encoded = toBinaryPayload(message)!;

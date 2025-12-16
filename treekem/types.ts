@@ -38,6 +38,7 @@ export interface WelcomeMessage {
 }
 
 export interface UpdateMaterial {
+  nodeId: number;
   ancestors: number[];
   publicPathMaterial: Uint8Array[];
   privPathMaterial: { point: Uint8Array; data: Uint8Array }[];

@@ -1,11 +1,15 @@
-import { DeliveryStatus, Message } from "@/types/global";
+import { DeliveryStatus, FragmentType, Message } from "@/types/global";
 import { Base64String } from "@/utils/Base64String";
 import { getRandomBytes } from "expo-crypto";
 import {
   extractFragmentMetadata,
-  fragmentMessage,
+  fragmentPayload,
   reassembleFragments,
 } from "../frag-service";
+import {
+  fromBinaryPayload,
+  toBinaryPayload,
+} from "../message-protocol-service";
 
 test("fragment & re-assemble", () => {
   const message: Message = {
@@ -21,7 +25,12 @@ test("fragment & re-assemble", () => {
     deliveryStatus: DeliveryStatus.SENDING,
   };
 
-  const { fragments } = fragmentMessage(message, "from", "to");
+  const { fragments } = fragmentPayload(
+    toBinaryPayload(message)!,
+    "from",
+    "to",
+    FragmentType.MESSAGE,
+  );
 
   const meta = extractFragmentMetadata(fragments[0]);
 
@@ -31,6 +40,7 @@ test("fragment & re-assemble", () => {
   expect(meta?.index).toBe(0);
 
   const reassembledMessage = reassembleFragments(fragments)!;
+  const decodedMessage = fromBinaryPayload(reassembledMessage.data);
 
-  expect(reassembledMessage.contents).toEqual(message.contents);
+  expect(decodedMessage.contents).toEqual(message.contents);
 });

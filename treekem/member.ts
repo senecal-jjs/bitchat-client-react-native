@@ -149,10 +149,9 @@ export class Member {
       // Apply update to all synchronized members
       for (const syncMember of synchronizedGroup) {
         await syncMember.applyUpdatePath(
-          pathUpdateMessage.ciphertext,
-          pathUpdateMessage.nonce,
+          pathUpdateMessage.updateMessage.ciphertext,
+          pathUpdateMessage.updateMessage.nonce,
           groupName,
-          joiningMember.id!,
         );
       }
 
@@ -161,6 +160,10 @@ export class Member {
     }
 
     return synchronizedGroup;
+  }
+
+  getGroupNames(): string[] {
+    return [...this.groups.keys()];
   }
 
   /**
@@ -286,7 +289,9 @@ export class Member {
   /**
    * Join a group using welcome message
    */
-  async joinGroup(welcomeMessage: WelcomeMessage): Promise<UpdateMessage> {
+  async joinGroup(
+    welcomeMessage: WelcomeMessage,
+  ): Promise<{ updateMessage: UpdateMessage; treeInfo: SerializedTree }> {
     // Decrypt symmetric key
     const ecdhKeyPair = new ECDHKeyPair(
       this.ecdhPublicKey,
@@ -323,8 +328,10 @@ export class Member {
     group.admins = treeInfo.admins;
     this.groups.set(treeInfo.groupName, group);
 
+    const updateMessage = await this.addToGroup(treeInfo.groupName);
+
     // Add self to leftmost open leaf
-    return this.addToGroup(treeInfo.groupName);
+    return { updateMessage, treeInfo };
   }
 
   /**
@@ -398,6 +405,7 @@ export class Member {
     if (!creds) throw new Error("No credentials");
 
     const pathUpdateMessage: UpdateMaterial = {
+      nodeId,
       ancestors,
       publicPathMaterial: ancestorsNewPublicMaterial,
       privPathMaterial: updatePath,
@@ -491,6 +499,7 @@ export class Member {
     }
 
     const pathUpdateMessage: UpdateMaterial = {
+      nodeId,
       ancestors,
       publicPathMaterial: ancestorsNewPublicMaterial,
       privPathMaterial: ancestorsPathUpdate,
@@ -511,7 +520,6 @@ export class Member {
     pathUpdateMessage: Uint8Array,
     nonce: Uint8Array,
     groupName: string,
-    updatingNode: number,
   ): Promise<void> {
     const group = this.groups.get(groupName);
     if (!group) throw new Error(`Group ${groupName} not found`);
@@ -530,6 +538,7 @@ export class Member {
 
     // Convert objects back to Uint8Arrays
     const updateMaterial: UpdateMaterial = {
+      nodeId: parsedMaterial.nodeId,
       ancestors: parsedMaterial.ancestors,
       publicPathMaterial: parsedMaterial.publicPathMaterial.map(
         (obj: any) => new Uint8Array(Object.values(obj)),
@@ -608,7 +617,10 @@ export class Member {
     }
 
     // Update the updating node's public key and credentials
-    const updatingNodeObj = tree.getNodeById(tree.height, updatingNode);
+    const updatingNodeObj = tree.getNodeById(
+      tree.height,
+      updateMaterial.nodeId,
+    );
     if (updatingNodeObj) {
       updatingNodeObj.publicKey = PublicKey.fromBytesModOrder(
         updateMaterial.publicKey,

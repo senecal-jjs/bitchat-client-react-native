@@ -12,6 +12,8 @@ enum Result {
 }
 
 enum PacketType {
+  AMIGO_WELCOME,
+  AMIGO_PATH_UPDATE,
   ANNOUNCE, // "I'm here" with nickname
   MESSAGE, // Public chat message
   LEAVE, // "I'm leaving"
@@ -26,21 +28,22 @@ enum PacketType {
   READ_RECEIPT,
 }
 
+enum FragmentType {
+  AMIGO_WELCOME,
+  AMIGO_PATH_UPDATE,
+  MESSAGE, // Chat message
+}
+
 // Represents a user visible message in the BitChat system.
 // Handles both broadcast messages and private encrypted messages,
 // with support for retries, and delivery tracking
 // - Note this is the primary data model for chat messages
 type Message = {
   id: string;
+  groupId: string;
   sender: string;
   contents: string;
   timestamp: number;
-  isRelay: boolean;
-  originalSender: string | null;
-  isPrivate: boolean;
-  recipientNickname: string | null;
-  senderPeerId: string | null;
-  deliveryStatus: DeliveryStatus | null;
 };
 
 type Conversation = {
@@ -57,19 +60,16 @@ type Conversation = {
 type BitchatPacket = {
   version: number;
   type: PacketType;
-  senderId: string;
-  recipientId: string;
   timestamp: number;
   payload: Uint8Array;
-  signature: string | null;
   allowedHops: number;
-  route: Uint8Array;
 };
 
 export {
   BitchatPacket,
   Conversation,
   DeliveryStatus,
+  FragmentType,
   Message,
   PacketType,
   Result

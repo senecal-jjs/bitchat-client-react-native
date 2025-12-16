@@ -1,3 +1,4 @@
+import { UUID } from "@/types/utility";
 import * as SQLite from "expo-sqlite";
 import {
   GroupMember,
@@ -12,7 +13,7 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
     this.db = database;
   }
 
-  async add(groupId: number, contactId: number): Promise<GroupMember> {
+  async add(groupId: UUID, contactId: number): Promise<GroupMember> {
     const statement = await this.db.prepareAsync(
       `INSERT INTO group_members (group_id, contact_id) 
        VALUES ($groupId, $contactId)`,
@@ -33,7 +34,7 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
     }
   }
 
-  async remove(groupId: number, contactId: number): Promise<void> {
+  async remove(groupId: UUID, contactId: number): Promise<void> {
     const statement = await this.db.prepareAsync(
       "DELETE FROM group_members WHERE group_id = $groupId AND contact_id = $contactId",
     );
@@ -48,14 +49,14 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
     }
   }
 
-  async getByGroup(groupId: number): Promise<GroupMember[]> {
+  async getByGroup(groupId: UUID): Promise<GroupMember[]> {
     const statement = await this.db.prepareAsync(
       "SELECT group_id, contact_id FROM group_members WHERE group_id = $groupId",
     );
 
     try {
       const result = await statement.executeAsync<{
-        group_id: number;
+        group_id: string;
         contact_id: number;
       }>({ $groupId: groupId });
 
@@ -74,7 +75,7 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
 
     try {
       const result = await statement.executeAsync<{
-        group_id: number;
+        group_id: string;
         contact_id: number;
       }>({ $contactId: contactId });
 
@@ -86,7 +87,7 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
     }
   }
 
-  async isMember(groupId: number, contactId: number): Promise<boolean> {
+  async isMember(groupId: UUID, contactId: number): Promise<boolean> {
     const statement = await this.db.prepareAsync(
       "SELECT 1 FROM group_members WHERE group_id = $groupId AND contact_id = $contactId LIMIT 1",
     );
@@ -105,7 +106,7 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
     }
   }
 
-  async removeAllFromGroup(groupId: number): Promise<void> {
+  async removeAllFromGroup(groupId: UUID): Promise<void> {
     const statement = await this.db.prepareAsync(
       "DELETE FROM group_members WHERE group_id = $groupId",
     );
@@ -130,7 +131,7 @@ class SQGroupMembersRepository implements GroupMembersRepository, Repository {
   }
 
   private mapRowToGroupMember(row: {
-    group_id: number;
+    group_id: string;
     contact_id: number;
   }): GroupMember {
     return {

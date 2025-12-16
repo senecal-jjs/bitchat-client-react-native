@@ -24,4 +24,4 @@ class ByteArrayBuilder {
   }
 }
 
-export default ByteArrayBuilder
+export default ByteArrayBuilder;

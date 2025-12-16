@@ -6,23 +6,23 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useMessageService } from "@/hooks/use-message-service";
+import { usePacketService } from "@/hooks/use-packet-service";
 import BleModule from "@/modules/ble/src/BleModule";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { handlePacket } = useMessageService();
+  const { handleIncomingPacket } = usePacketService();
 
   useEventListener(BleModule, "onPeripheralReceivedWrite", (message) => {
     // on packet receive, try to assemble into completed message and push to messages repo
     console.log("onPeripheralReceivedWrite");
-    handlePacket(message.rawBytes);
+    handleIncomingPacket(message.rawBytes);
   });
 
   useEventListener(BleModule, "onCentralReceivedNotification", (message) => {
     // store in packets repo
     console.log("onCentralReceivedNotification");
-    handlePacket(message.rawBytes);
+    handleIncomingPacket(message.rawBytes);
   });
 
   return (

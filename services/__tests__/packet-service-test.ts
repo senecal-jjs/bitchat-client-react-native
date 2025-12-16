@@ -1,4 +1,4 @@
-import { BitchatPacket, DeliveryStatus, Message } from "@/types/global";
+import { BitchatPacket, Message } from "@/types/global";
 import {
   fromBinaryPayload,
   toBinaryPayload,
@@ -11,12 +11,6 @@ test("encode & decode packet", () => {
     sender: "2",
     contents: "Hello!",
     timestamp: Date.now(),
-    isRelay: false,
-    originalSender: null,
-    isPrivate: true,
-    recipientNickname: "@ace",
-    senderPeerId: "p2",
-    deliveryStatus: DeliveryStatus.SENDING,
   };
 
   const encoded = toBinaryPayload(message)!;
@@ -24,13 +18,9 @@ test("encode & decode packet", () => {
   const packet: BitchatPacket = {
     version: 1,
     type: 1,
-    senderId: "1",
-    recipientId: "2",
     timestamp: Date.now(),
     payload: encoded,
-    signature: null,
     allowedHops: 3,
-    route: new Uint8Array(),
   };
 
   const encodedPacket = encode(packet)!;

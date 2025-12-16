@@ -1,3 +1,4 @@
+import { UUID } from "@/types/utility";
 import * as SQLite from "expo-sqlite";
 import GroupsRepository, { Group } from "../specs/groups-repository";
 import Repository from "../specs/repository";
@@ -10,19 +11,19 @@ class SQGroupsRepository implements GroupsRepository, Repository {
   }
 
   async create(name: string): Promise<Group> {
+    const id = crypto.randomUUID();
     const statement = await this.db.prepareAsync(
-      `INSERT INTO groups (name) VALUES ($name)`,
+      `INSERT INTO groups (id, name) VALUES ($id, $name)`,
     );
 
     try {
-      const result = await statement.executeAsync({
+      await statement.executeAsync({
+        $id: id,
         $name: name,
       });
 
-      const insertedId = result.lastInsertRowId;
-
       // Fetch the created group
-      const group = await this.get(insertedId);
+      const group = await this.get(id);
       if (!group) {
         throw new Error("Failed to retrieve created group");
       }
@@ -33,14 +34,14 @@ class SQGroupsRepository implements GroupsRepository, Repository {
     }
   }
 
-  async get(id: number): Promise<Group | null> {
+  async get(id: UUID): Promise<Group | null> {
     const statement = await this.db.prepareAsync(
       "SELECT * FROM groups WHERE id = $id LIMIT 1",
     );
 
     try {
       const result = await statement.executeAsync<{
-        id: number;
+        id: string;
         name: string;
         last_active_at: number;
         created_at: number;
@@ -66,7 +67,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
 
     try {
       const result = await statement.executeAsync<{
-        id: number;
+        id: string;
         name: string;
         last_active_at: number;
         created_at: number;
@@ -92,7 +93,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
 
     try {
       const result = await statement.executeAsync<{
-        id: number;
+        id: string;
         name: string;
         last_active_at: number;
         created_at: number;
@@ -108,7 +109,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
   }
 
   async update(
-    id: number,
+    id: UUID,
     updates: Partial<Pick<Group, "name" | "lastActiveAt">>,
   ): Promise<Group> {
     const setParts: string[] = [];
@@ -154,7 +155,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
     }
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: UUID): Promise<void> {
     const statement = await this.db.prepareAsync(
       "DELETE FROM groups WHERE id = $id",
     );
@@ -166,7 +167,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
     }
   }
 
-  async updateLastActiveAt(id: number): Promise<void> {
+  async updateLastActiveAt(id: UUID): Promise<void> {
     const statement = await this.db.prepareAsync(
       `UPDATE groups 
        SET last_active_at = strftime('%s', 'now'),
@@ -182,7 +183,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
   }
 
   private mapRowToGroup(row: {
-    id: number;
+    id: string;
     name: string;
     last_active_at: number;
     created_at: number;
