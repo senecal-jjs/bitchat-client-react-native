@@ -6,12 +6,13 @@ export interface Contact {
   pseudonym: string;
   signature: Uint8Array;
   ecdhPublicKey: Uint8Array;
+  verifiedOob: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
 export default interface ContactsRepository {
-  create(credentials: Credentials): Promise<Contact>;
+  create(credentials: Credentials, verifiedOob: boolean): Promise<Contact>;
   get(id: number): Promise<Contact | null>;
   getByVerificationKey(verificationKey: Uint8Array): Promise<Contact | null>;
   getByPseudonym(pseudonym: string): Promise<Contact[]>;

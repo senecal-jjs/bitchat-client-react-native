@@ -2,10 +2,17 @@ import ContactList from "@/components/contact-list";
 import ConversationItem from "@/components/conversation";
 import QRModal from "@/components/qr-modal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import {
+  GroupsRepositoryToken,
+  MessagesRepositoryToken,
+  useRepos,
+} from "@/contexts/repository-context";
+import { dbListener } from "@/repos/db-listener";
 import { Contact } from "@/repos/specs/contacts-repository";
-import { Conversation } from "@/types/global";
+import GroupsRepository from "@/repos/specs/groups-repository";
+import MessagesRepository from "@/repos/specs/messages-repository";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -32,10 +39,88 @@ const mockConversations = [
   },
 ];
 
+type Conversation = {
+  id: string;
+  name: string;
+  lastMessage: string;
+  timestamp: string;
+};
+
 export default function TabTwoScreen() {
   const router = useRouter();
   const [showQRModal, setShowQRModal] = useState(false);
   const [showContactList, setShowContactList] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const { getRepo } = useRepos();
+  const groupsRepo = getRepo<GroupsRepository>(GroupsRepositoryToken);
+  const messagesRepo = getRepo<MessagesRepository>(MessagesRepositoryToken);
+
+  const fetchConversations = async () => {
+    const groups = await groupsRepo.list();
+
+    const conversationPromises = groups.map(async (group) => {
+      // Get last message for this group
+      const lastMessageData = await messagesRepo.getByGroupId(group.id, 1, 0);
+
+      let lastMessage = "";
+      let timestamp = "";
+
+      if (lastMessageData.length > 0) {
+        lastMessage = lastMessageData[0].contents;
+        timestamp = formatTimestamp(lastMessageData[0].timestamp);
+      } else {
+        lastMessage = "No messages yet";
+        timestamp = formatTimestamp(group.createdAt);
+      }
+
+      return {
+        id: group.id,
+        name: group.name,
+        lastMessage,
+        timestamp,
+      };
+    });
+
+    const fetchedConversations = await Promise.all(conversationPromises);
+    setConversations(fetchedConversations);
+  };
+
+  useEffect(() => {
+    fetchConversations();
+
+    // Listen for group creation events
+    dbListener.onGroupCreation(fetchConversations);
+
+    // Cleanup listener on unmount
+    return () => {
+      dbListener.removeGroupCreationListener(fetchConversations);
+    };
+  }, []);
+
+  const formatTimestamp = (timestamp: number): string => {
+    const now = Date.now() / 1000;
+    const diff = now - timestamp;
+
+    if (diff < 86400) {
+      // Less than a day
+      const date = new Date(timestamp * 1000);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } else if (diff < 604800) {
+      // Less than a week
+      const date = new Date(timestamp * 1000);
+      return date.toLocaleDateString("en-US", { weekday: "long" });
+    } else {
+      const date = new Date(timestamp * 1000);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    }
+  };
 
   const handleOpenModal = () => {
     setShowQRModal(true);
@@ -86,7 +171,7 @@ export default function TabTwoScreen() {
           </Pressable>
         </View>
         <FlatList
-          data={mockConversations}
+          data={conversations}
           showsVerticalScrollIndicator={false}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}

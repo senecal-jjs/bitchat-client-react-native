@@ -46,13 +46,6 @@ type Message = {
   timestamp: number;
 };
 
-type Conversation = {
-  id: string;
-  name: string;
-  lastMessage: string;
-  timestamp: string;
-};
-
 // The core packet structure for all BitChat protocol messages.
 // Encapsulates all data needed for routing through the mesh network,
 // including allowedHops for hop limiting and optional encryption.
@@ -67,7 +60,6 @@ type BitchatPacket = {
 
 export {
   BitchatPacket,
-  Conversation,
   DeliveryStatus,
   FragmentType,
   Message,

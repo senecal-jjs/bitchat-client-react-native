@@ -1,5 +1,6 @@
 import { BitchatPacket } from "@/types/global";
 import { EventEmitter } from "events";
+import { randomUUID } from "expo-crypto";
 
 type QueueItem = {
   id: string;
@@ -18,7 +19,7 @@ class PacketProcessorQueue extends EventEmitter {
 
   async enqueue(packet: BitchatPacket): Promise<void> {
     const item: QueueItem = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       packet,
       timestamp: Date.now(),
       retries: 0,

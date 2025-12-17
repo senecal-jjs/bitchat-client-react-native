@@ -52,13 +52,9 @@ async function migrateDb(db: SQLiteDatabase) {
         position INTEGER NOT NULL,
         version INTEGER NOT NULL,
         type INTEGER NOT NULL,
-        sender_id TEXT NOT NULL,
-        recipient_id TEXT,
         timestamp INTEGER NOT NULL,
         payload BLOB NOT NULL,
-        signature TEXT,
         allowed_hops INTEGER NOT NULL,
-        route BLOB NOT NULL,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
       
@@ -80,6 +76,7 @@ async function migrateDb(db: SQLiteDatabase) {
         pseudonym TEXT NOT NULL,
         signature string NOT NULL,
         ecdh_public_key string NOT NULL,
+        verified_oob INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         UNIQUE(verification_key)
@@ -114,19 +111,14 @@ async function migrateDb(db: SQLiteDatabase) {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         version INTEGER NOT NULL,
         type INTEGER NOT NULL,
-        sender_id TEXT NOT NULL,
-        recipient_id TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
         payload BLOB NOT NULL,
-        signature TEXT,
         allowed_hops INTEGER NOT NULL,
-        route BLOB NOT NULL,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
       
       CREATE INDEX idx_incoming_packets_timestamp ON incoming_packets(timestamp);
       CREATE INDEX idx_incoming_packets_type ON incoming_packets(type);
-      CREATE INDEX idx_incoming_packets_sender_id ON incoming_packets(sender_id);
       CREATE INDEX idx_incoming_packets_created_at ON incoming_packets(created_at);
 
       CREATE TABLE IF NOT EXISTS relay_packets (

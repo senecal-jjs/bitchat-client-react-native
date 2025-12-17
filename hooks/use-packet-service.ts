@@ -1,11 +1,17 @@
 import { useCredentials } from "@/contexts/credential-context";
 import {
+  ContactsRepositoryToken,
   FragmentsRepositoryToken,
+  GroupMembersRepositoryToken,
+  GroupsRepositoryToken,
   IncomingPacketsRepositoryToken,
   MessagesRepositoryToken,
   useRepos,
 } from "@/contexts/repository-context";
+import ContactsRepository from "@/repos/specs/contacts-repository";
 import FragmentsRepository from "@/repos/specs/fragments-repository";
+import { GroupMembersRepository } from "@/repos/specs/group-members-repository";
+import GroupsRepository from "@/repos/specs/groups-repository";
 import IncomingPacketsRepository from "@/repos/specs/incoming-packets-repository";
 import MessagesRepository from "@/repos/specs/messages-repository";
 import {
@@ -35,6 +41,13 @@ export function usePacketService() {
   );
   const messagesRepository = getRepo<MessagesRepository>(
     MessagesRepositoryToken,
+  );
+  const groupsRepository = getRepo<GroupsRepository>(GroupsRepositoryToken);
+  const groupMembersRepository = getRepo<GroupMembersRepository>(
+    GroupMembersRepositoryToken,
+  );
+  const contactsRepository = getRepo<ContactsRepository>(
+    ContactsRepositoryToken,
   );
   const { member, saveMember } = useCredentials();
   const { sendAmigoPathUpdate } = useMessageSender();
@@ -166,18 +179,61 @@ export function usePacketService() {
       throw new Error("Member state missing");
     }
 
+    console.log("Received Amigo Welcome");
+
     const welcome = deserializeWelcomeMessage(welcomeBytes);
 
     // Attempt decryption of the welcome message, if successful
     // the message has reached its intended recipient.
-    try {
-      const pathUpdate = await member.joinGroup(welcome);
-      sendAmigoPathUpdate(pathUpdate.updateMessage);
-      saveMember();
-      // TODO(broadcast path update)
-    } catch (error) {
-      console.log(error);
+    // try {
+    const pathUpdate = await member.joinGroup(welcome);
+    const group = await groupsRepository.create(
+      pathUpdate.treeInfo.groupName,
+      "New Group",
+    );
+
+    // check if we recognize any members of the group as contacts
+    let groupName = "";
+
+    for (const credential of pathUpdate.treeInfo.credentials) {
+      const verificationKeyBytes = Buffer.from(
+        credential[1].verificationKey,
+        "base64",
+      );
+
+      const contact =
+        await contactsRepository.getByVerificationKey(verificationKeyBytes);
+
+      if (contact) {
+        groupName = groupName + ` ${contact.pseudonym}`;
+        groupMembersRepository.add(group.id, contact.id);
+      } else {
+        // create a new unknown contact (verified out of band == false)
+        const newContact = await contactsRepository.create(
+          {
+            verificationKey: Buffer.from(
+              credential[1].verificationKey,
+              "base64",
+            ),
+            pseudonym: credential[1].pseudonym,
+            signature: Buffer.from(credential[1].signature, "base64"),
+            ecdhPublicKey: Buffer.from(credential[1].ecdhPublicKey, "base64"),
+          },
+          false,
+        );
+
+        groupName = groupName + ` ${newContact.pseudonym}`;
+        groupMembersRepository.add(group.id, newContact.id);
+      }
     }
+
+    groupsRepository.update(group.id, { name: groupName.trim() });
+
+    sendAmigoPathUpdate(pathUpdate.updateMessage);
+    saveMember();
+    // } catch (error) {
+    //   console.log(error);
+    // }
   };
 
   const handleAmigoPathUpdate = async (pathUpdateBytes: Uint8Array) => {

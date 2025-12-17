@@ -25,6 +25,30 @@ class DBListener extends EventEmitter {
   removeMessageChangeListener(callback: () => void) {
     this.off("messages:changed", callback);
   }
+
+  notifyGroupCreation() {
+    this.emit("groups:created");
+  }
+
+  onGroupCreation(callback: () => void) {
+    this.on("groups:created", callback);
+  }
+
+  removeGroupCreationListener(callback: () => void) {
+    this.off("groups:created", callback);
+  }
+
+  notifyGroupUpdate() {
+    this.emit("groups:updated");
+  }
+
+  onGroupUpdate(callback: () => void) {
+    this.on("groups:updated", callback);
+  }
+
+  removeGroupUpdateListener(callback: () => void) {
+    this.off("groups:updated", callback);
+  }
 }
 
 export const dbListener = DBListener.getInstance();

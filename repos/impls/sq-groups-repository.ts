@@ -1,5 +1,6 @@
 import { UUID } from "@/types/utility";
 import * as SQLite from "expo-sqlite";
+import { dbListener } from "../db-listener";
 import GroupsRepository, { Group } from "../specs/groups-repository";
 import Repository from "../specs/repository";
 
@@ -30,6 +31,7 @@ class SQGroupsRepository implements GroupsRepository, Repository {
       return group;
     } finally {
       await statement.finalizeAsync();
+      dbListener.notifyGroupCreation();
     }
   }
 

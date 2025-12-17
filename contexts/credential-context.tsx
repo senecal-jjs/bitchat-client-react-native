@@ -66,6 +66,8 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
 
         const loadedMember = Member.fromJSON(JSON.parse(storedMemberState));
 
+        console.log("Loaded member: ", loadedMember.credential.ecdhPublicKey);
+
         setMember(loadedMember);
         setCredentials(loadedMember.credential);
         setPseudonym(loadedMember.pseudonym);

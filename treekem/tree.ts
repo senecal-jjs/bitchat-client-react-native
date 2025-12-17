@@ -405,9 +405,6 @@ export class BinaryTree {
   ): BinaryTree {
     const tree = BinaryTree.generate(capacity);
 
-    console.log("deserializeTree");
-    console.log(publicKeys);
-
     if (publicKeys.size > 0) {
       for (const [id, publicKeyBase64] of publicKeys.entries()) {
         const publicKeyBytes = Buffer.from(publicKeyBase64, "base64");

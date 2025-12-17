@@ -1,20 +1,16 @@
 import { CredentialsQR } from "@/components/credentials-qr";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useCredential } from "@/contexts/credential-context";
 import {
   ContactsRepositoryToken,
   useRepos,
 } from "@/contexts/repository-context";
 import ContactsRepository from "@/repos/specs/contacts-repository";
 import { deserializeCredentialsFromQR } from "@/treekem/protocol";
-import { Credentials, SerializedCredentials } from "@/treekem/types";
-import { Mutex } from "@/utils/mutex";
-import { secureFetch } from "@/utils/secure-store";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import React, { PropsWithChildren, useEffect, useRef, useState } from "react";
+import React, { PropsWithChildren, useRef, useState } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-
-const CREDENTIALS_KEY = "treekem_credentials";
 
 type Props = PropsWithChildren<{
   showQRModal: boolean;
@@ -22,36 +18,13 @@ type Props = PropsWithChildren<{
 }>;
 
 export default function QRModal({ showQRModal, handleClose }: Props) {
-  const mutex = new Mutex();
   const [viewMode, setViewMode] = useState<"show" | "scan">("show");
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const { member } = useCredential();
   const { getRepo } = useRepos();
   const contactsRepo = getRepo<ContactsRepository>(ContactsRepositoryToken);
   const isProcessingRef = useRef(false);
-
-  useEffect(() => {
-    const loadCredentials = async () => {
-      try {
-        const storedCreds = await secureFetch(CREDENTIALS_KEY);
-        const serialized: SerializedCredentials = JSON.parse(storedCreds);
-
-        const creds: Credentials = {
-          verificationKey: Buffer.from(serialized.verificationKey, "base64"),
-          pseudonym: serialized.pseudonym,
-          signature: Buffer.from(serialized.signature, "base64"),
-          ecdhPublicKey: Buffer.from(serialized.ecdhPublicKey, "base64"),
-        };
-
-        setCredentials(creds);
-      } catch (error) {
-        console.error("Failed to load credentials:", error);
-      }
-    };
-
-    loadCredentials();
-  }, []);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     // Prevent multiple scans
@@ -81,8 +54,8 @@ export default function QRModal({ showQRModal, handleClose }: Props) {
         return;
       }
 
-      // Save new contact
-      const contact = await contactsRepo.create(scannedCredentials);
+      // Save new contact (verifiedOob == true)
+      const contact = await contactsRepo.create(scannedCredentials, true);
 
       Alert.alert(
         "Contact Added",
@@ -171,10 +144,10 @@ export default function QRModal({ showQRModal, handleClose }: Props) {
           </View>
 
           {/* Show QR Code View */}
-          {viewMode === "show" && credentials && (
+          {viewMode === "show" && member && (
             <>
               <CredentialsQR
-                credentials={credentials}
+                credentials={member.credential}
                 title="Scan to Add Me"
                 size={250}
               />

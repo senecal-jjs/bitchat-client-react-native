@@ -1,3 +1,4 @@
+import { useCredentials } from "@/contexts/credential-context";
 import {
   MessagesRepositoryToken,
   OutgoingMessagesRepositoryToken,
@@ -10,6 +11,7 @@ import { fragmentPayload } from "@/services/frag-service";
 import { toBinaryPayload } from "@/services/message-protocol-service";
 import { encode } from "@/services/packet-protocol-service";
 import {
+  serializeEncryptedMessage,
   serializeUpdateMessage,
   serializeWelcomeMessage,
 } from "@/treekem/protocol";
@@ -20,9 +22,11 @@ import {
   Message,
   PacketType,
 } from "@/types/global";
+import { sleep } from "@/utils/sleep";
 import Constants from "expo-constants";
 
 export function useMessageSender() {
+  const { member } = useCredentials();
   const { getRepo } = useRepos();
   const outgoingMessagesRepo = getRepo<OutgoingMessagesRepository>(
     OutgoingMessagesRepositoryToken,
@@ -30,6 +34,10 @@ export function useMessageSender() {
   const messagesRepo = getRepo<MessagesRepository>(MessagesRepositoryToken);
 
   const sendMessage = async (message: Message) => {
+    if (!member) {
+      throw new Error("Member state missing");
+    }
+
     // Store in both repositories
     await outgoingMessagesRepo.create(message);
     await messagesRepo.create(message);
@@ -37,13 +45,29 @@ export function useMessageSender() {
     // Attempt immediate broadcast (foreground)
     const payload = toBinaryPayload(message);
 
+    if (!payload) {
+      throw new Error("Failed to encode message to binary payload");
+    }
+
+    const encryptedPayload = await member.encryptApplicationMessage(
+      payload,
+      message.groupId,
+    );
+
+    const encryptedBytes = serializeEncryptedMessage(encryptedPayload);
+
     if (payload) {
-      buildPacketsAndSend(payload, FragmentType.MESSAGE, PacketType.MESSAGE);
+      buildPacketsAndSend(
+        encryptedBytes,
+        FragmentType.MESSAGE,
+        PacketType.MESSAGE,
+      );
     }
   };
 
   // TODO: save amigo messages to their own repository
   const sendAmigoWelcome = async (message: WelcomeMessage) => {
+    console.log("Sending Amigo Welcome");
     const messageBytes = serializeWelcomeMessage(message);
     buildPacketsAndSend(
       messageBytes,
@@ -53,6 +77,7 @@ export function useMessageSender() {
   };
 
   const sendAmigoPathUpdate = async (message: UpdateMessage) => {
+    console.log("Sending Amigo Path Update");
     const messageBytes = serializeUpdateMessage(message);
     buildPacketsAndSend(
       messageBytes,
@@ -77,6 +102,9 @@ export function useMessageSender() {
         }
 
         await BleModule.broadcastPacketAsync(encoded);
+
+        // Wait 1 second before next iteration
+        await sleep(1000);
       }
     } catch (error) {
       console.error(

@@ -25,13 +25,12 @@ class SQMessagesRepository implements MessagesRepository, Repository {
         $timestamp: message.timestamp,
         $groupId: message.groupId,
       });
-
-      // Notify listeners of the change
-      dbListener.notifyMessageChange();
-
       return message;
     } finally {
       await statement.finalizeAsync();
+
+      // Notify listeners of the change
+      dbListener.notifyMessageChange();
     }
   }
 
