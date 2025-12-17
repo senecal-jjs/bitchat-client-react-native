@@ -262,9 +262,11 @@ export function usePacketService() {
       throw new Error("Member state missing");
     }
 
+    console.log(`${member.pseudonym} received amigo message`);
+
     const encryptedMessage = deserializeEncryptedMessage(encryptedBytes);
 
-    // it's possible the member's casync ryptographic state isn't up to date.
+    // it's possible the member's async cryptographic state isn't up to date.
     // if decryption is unsuccessful, the message should be saved and decryption attempted
     // at a later date
     let messageBytes: Uint8Array | null = null;
@@ -279,13 +281,16 @@ export function usePacketService() {
         );
         saveMember();
       } catch (error) {
-        console.log(error);
+        // console.log(error);
       }
     }
 
     if (messageBytes) {
       const message = fromBinaryPayload(messageBytes);
-      messagesRepository.create(message);
+      const messageExists = await messagesRepository.exists(message.id);
+      if (!messageExists) {
+        messagesRepository.create(message);
+      }
     } else {
       console.warn("Failed to decrypt message, save for future attempt");
     }

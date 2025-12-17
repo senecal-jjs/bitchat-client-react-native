@@ -104,7 +104,7 @@ export function useMessageSender() {
         await BleModule.broadcastPacketAsync(encoded);
 
         // Wait 1 second before next iteration
-        await sleep(1000);
+        await sleep(500);
       }
     } catch (error) {
       console.error(

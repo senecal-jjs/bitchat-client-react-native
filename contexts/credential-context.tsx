@@ -24,6 +24,7 @@ interface CredentialContextType {
   updatePseudonym: (newPseudonym: string) => Promise<void>;
   regenerateMember: (pseudonym: string) => Promise<void>;
   saveMember: () => Promise<void>;
+  deleteMember: () => Promise<void>;
 }
 
 const CredentialContext = createContext<CredentialContextType | undefined>(
@@ -209,6 +210,15 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const deleteMember = async () => {
+    // Delete existing file and create new one
+    const { File, Paths } = await import("expo-file-system");
+    const existingFile = new File(Paths.cache, MEMBER_STATE_FILENAME);
+    if (existingFile.exists) {
+      existingFile.delete();
+    }
+  };
+
   const value: CredentialContextType = {
     member,
     credentials,
@@ -217,6 +227,7 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
     updatePseudonym,
     regenerateMember,
     saveMember,
+    deleteMember,
   };
 
   return (

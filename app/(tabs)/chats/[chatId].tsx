@@ -15,36 +15,46 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
+import { useCredential } from "@/contexts/credential-context";
+import { GroupsRepositoryToken, useRepos } from "@/contexts/repository-context";
 import { useGroupMessages } from "@/hooks/use-group-messages";
 import { useMessageSender } from "@/hooks/use-message-sender";
+import GroupsRepository from "@/repos/specs/groups-repository";
 import { Message } from "@/types/global";
-import { secureFetch } from "@/utils/secure-store";
-
-// TODO (create during onboarding)
-// getRandomBytes(8).then((bytes) => secureStore("peerId", bytes.toString()));
+import { uint8ArrayToHexString } from "@/utils/string";
 
 export default function Chat() {
   const navigation = useNavigation();
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
-  const [peerId, setPeerId] = useState<string | null>(null);
+  const { member } = useCredential();
   const { sendMessage } = useMessageSender();
   const { messages, isLoading, isLoadingMore, hasMore, loadMore } =
     useGroupMessages(chatId);
+  const { getRepo } = useRepos();
+  const groupsRepo = getRepo<GroupsRepository>(GroupsRepositoryToken);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    navigation.setOptions({
-      title: "Contact",
-    });
-  }, [navigation]);
+    async function getGroupName() {
+      const group = await groupsRepo.get(chatId);
 
-  useEffect(() => {
-    console.log("fetching peer id");
-    secureFetch("peerId").then((peerId) => setPeerId(peerId));
-  }, []);
+      navigation.setOptions({
+        title: group?.name ?? "Uknown Group",
+      });
+    }
+
+    getGroupName();
+  });
 
   const renderMessage = ({ item }: { item: Message }) => {
-    return <ChatBubble message={item} peerId={peerId!} />;
+    return (
+      <ChatBubble
+        message={item}
+        verificationKey={uint8ArrayToHexString(
+          member?.credential.verificationKey!,
+        )}
+      />
+    );
   };
 
   const renderFooter = () => {
@@ -66,11 +76,15 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState("");
 
   const handleSend = () => {
+    if (!member) {
+      throw new Error("Member state is missing");
+    }
+
     if (newMessage.trim()) {
       const newMsg: Message = {
         id: Crypto.randomUUID(),
         groupId: chatId,
-        sender: "1",
+        sender: uint8ArrayToHexString(member.credential.verificationKey),
         contents: newMessage,
         timestamp: Date.now(),
       };
