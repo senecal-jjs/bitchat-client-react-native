@@ -1,7 +1,7 @@
 import { Member } from "@/treekem/member";
 import { Credentials } from "@/treekem/types";
 import { fetchFromFile, saveToAppDirectory } from "@/utils/file";
-import { generateRandomNameCapitalized } from "@/utils/names";
+import { generateRandomName } from "@/utils/names";
 import { secureFetch, secureStore } from "@/utils/secure-store";
 import { getRandomBytes } from "expo-crypto";
 import React, {
@@ -75,7 +75,7 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
       } catch {
         // No member state exists, create new member
         console.log("No member state found, creating new member");
-        await generateNewMember(generateRandomNameCapitalized());
+        await generateNewMember(generateRandomName());
       } finally {
         setIsLoading(false);
       }

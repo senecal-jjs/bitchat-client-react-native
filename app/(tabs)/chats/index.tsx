@@ -59,6 +59,7 @@ export default function TabTwoScreen() {
     const groups = await groupsRepo.list();
 
     const conversationPromises = groups.map(async (group) => {
+      console.log("building conversations");
       // Get last message for this group
       const lastMessageData = await messagesRepo.getByGroupId(group.id, 1, 0);
 
@@ -90,6 +91,8 @@ export default function TabTwoScreen() {
 
     // Listen for group creation events
     dbListener.onGroupCreation(fetchConversations);
+    dbListener.onMessageChange(fetchConversations);
+    dbListener.onGroupUpdate(fetchConversations);
 
     // Cleanup listener on unmount
     return () => {
@@ -98,23 +101,24 @@ export default function TabTwoScreen() {
   }, []);
 
   const formatTimestamp = (timestamp: number): string => {
-    const now = Date.now() / 1000;
+    const now = Date.now();
     const diff = now - timestamp;
+    const millisDay = 86_400_000;
 
-    if (diff < 86400) {
+    if (diff < millisDay) {
       // Less than a day
-      const date = new Date(timestamp * 1000);
+      const date = new Date(timestamp);
       return date.toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
       });
-    } else if (diff < 604800) {
+    } else if (diff < millisDay * 7) {
       // Less than a week
-      const date = new Date(timestamp * 1000);
+      const date = new Date(timestamp);
       return date.toLocaleDateString("en-US", { weekday: "long" });
     } else {
-      const date = new Date(timestamp * 1000);
+      const date = new Date(timestamp);
       return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",

@@ -38,6 +38,10 @@ export function useMessageSender() {
       throw new Error("Member state missing");
     }
 
+    const exists = await messagesRepo.exists(message.id);
+
+    if (exists) return;
+
     // Store in both repositories
     await outgoingMessagesRepo.create(message);
     await messagesRepo.create(message);
