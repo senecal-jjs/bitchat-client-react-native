@@ -14,6 +14,7 @@ import {
   reassembleFragments,
 } from "@/services/frag-service";
 import { fromBinaryPayload } from "@/services/message-protocol-service";
+import { packetQueue } from "@/services/packet-processor-queue";
 import { decode } from "@/services/packet-protocol-service";
 import {
   deserializeEncryptedMessage,
@@ -21,6 +22,7 @@ import {
   deserializeWelcomeMessage,
 } from "@/treekem/protocol";
 import { BitchatPacket, FragmentType, PacketType } from "@/types/global";
+import { useEffect } from "react";
 import { useMessageSender } from "./use-message-sender";
 
 export function usePacketService() {
@@ -37,6 +39,11 @@ export function usePacketService() {
   const { member, saveMember } = useCredentials();
   const { sendAmigoPathUpdate } = useMessageSender();
 
+  // Set up queue processor
+  useEffect(() => {
+    packetQueue.setProcessor(processPacket);
+  });
+
   /**
    * Persists the raw packet of bytes for further processing. The packet will either be relayed on to
    * other nodes in the mesh, or if the packet is intended for the user's device it will be decrypted and
@@ -49,7 +56,11 @@ export function usePacketService() {
 
     if (!decodedPacket) throw new Error("Failed to deserialize packet bytes");
 
+    // Store immediately
     incomingPacketsRepository.create(decodedPacket);
+
+    // Queue for async processing
+    packetQueue.enqueue(decodedPacket);
   };
 
   /**
