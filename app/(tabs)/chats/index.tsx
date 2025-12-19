@@ -105,6 +105,8 @@ export default function TabTwoScreen() {
     const diff = now - timestamp;
     const millisDay = 86_400_000;
 
+    console.log(`diff :${diff}`);
+
     if (diff < millisDay) {
       // Less than a day
       const date = new Date(timestamp);

@@ -88,8 +88,8 @@ async function migrateDb(db: SQLiteDatabase) {
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
         last_active_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
       );
       
       CREATE INDEX idx_groups_name ON groups(name);
