@@ -1,14 +1,12 @@
 import Constants from "expo-constants";
 
-import { BitchatPacket, Message, PacketType } from "@/types/global";
+import { BitchatPacket, FragmentType, PacketType } from "@/types/global";
 import { Base64String } from "@/utils/Base64String";
 import { getRandomBytes } from "expo-crypto";
-import { fromBinaryPayload, toBinaryPayload } from "./message-protocol-service";
 
-const fragmentMessage = (
-  message: Message,
-  senderId: string,
-  recipientId: string,
+const fragmentPayload = (
+  data: Uint8Array,
+  fragmentType: FragmentType,
 ): { fragmentId: Base64String; fragments: BitchatPacket[] } => {
   // create a random 8 byte fragment id
   const fragmentId = getRandomBytes(8);
@@ -21,18 +19,13 @@ const fragmentMessage = (
     fragmentSize = 50;
   }
 
-  // Convert message to binary payload
-  const messagePayload = toBinaryPayload(message);
-  if (!messagePayload) {
-    throw new Error("Failed to encode message to binary payload");
-  }
-
   // Fragment payload structure:
   // - Fragment ID: 8 bytes
+  // - Fragment type: 1 byte
   // - Fragment index: 2 bytes (big-endian)
   // - Total fragments: 2 bytes (big-endian)
   // - Fragment data: remaining bytes (up to fragmentSize)
-  const fragmentHeaderSize = 12; // 8 (id) + 2 (index) + 2 (total)
+  const fragmentHeaderSize = 13; // 8 (id) + 1 (type) + 2 (index) + 2 (total)
   const dataPerFragment = fragmentSize - fragmentHeaderSize;
 
   if (dataPerFragment <= 0) {
@@ -42,7 +35,7 @@ const fragmentMessage = (
   }
 
   // Calculate total number of fragments needed
-  const totalFragments = Math.ceil(messagePayload.length / dataPerFragment);
+  const totalFragments = Math.ceil(data.length / dataPerFragment);
 
   if (totalFragments > 65535) {
     throw new Error(
@@ -55,8 +48,8 @@ const fragmentMessage = (
   for (let i = 0; i < totalFragments; i++) {
     // Calculate data slice for this fragment
     const start = i * dataPerFragment;
-    const end = Math.min(start + dataPerFragment, messagePayload.length);
-    const fragmentData = messagePayload.slice(start, end);
+    const end = Math.min(start + dataPerFragment, data.length);
+    const fragmentData = data.slice(start, end);
 
     // Build fragment payload
     const payload = new Uint8Array(fragmentHeaderSize + fragmentData.length);
@@ -65,6 +58,9 @@ const fragmentMessage = (
     // Fragment ID (8 bytes)
     payload.set(fragmentId, offset);
     offset += 8;
+
+    // Fragment type (1 byte)
+    payload[offset++] = fragmentType;
 
     // Fragment index (2 bytes, big-endian)
     payload[offset++] = (i >> 8) & 0xff;
@@ -81,13 +77,9 @@ const fragmentMessage = (
     const packet: BitchatPacket = {
       version: 1,
       type: PacketType.FRAGMENT,
-      senderId,
-      recipientId,
       timestamp: Date.now(),
       payload,
-      signature: null,
       allowedHops: 3,
-      route: new Uint8Array(),
     };
 
     fragments.push(packet);
@@ -101,15 +93,21 @@ const fragmentMessage = (
 
 const extractFragmentMetadata = (
   packet: BitchatPacket,
-): { fragmentId: Base64String; index: number; total: number } | null => {
+): {
+  fragmentId: Base64String;
+  fragmentType: FragmentType;
+  index: number;
+  total: number;
+} | null => {
   const payload = packet.payload;
 
   // Fragment payload structure:
   // - Fragment ID: 8 bytes
+  // - Fragment type: 1 byte
   // - Fragment index: 2 bytes (big-endian)
   // - Total fragments: 2 bytes (big-endian)
   // - Fragment data: remaining bytes
-  const fragmentHeaderSize = 12;
+  const fragmentHeaderSize = 13;
 
   if (payload.length < fragmentHeaderSize) {
     return null;
@@ -119,21 +117,26 @@ const extractFragmentMetadata = (
   const fragmentIdBytes = payload.slice(0, 8);
   const fragmentId = Base64String.fromBytes(fragmentIdBytes);
 
-  // Extract fragment index (bytes 8-9, big-endian)
-  const index = (payload[8] << 8) | payload[9];
+  // Extract fragment type (byte 8)
+  const fragmentType = payload[8] as FragmentType;
 
-  // Extract total fragments (bytes 10-11, big-endian)
-  const total = (payload[10] << 8) | payload[11];
+  // Extract fragment index (bytes 9-10, big-endian)
+  const index = (payload[9] << 8) | payload[10];
 
-  return { fragmentId, index, total };
+  // Extract total fragments (bytes 11-12, big-endian)
+  const total = (payload[11] << 8) | payload[12];
+
+  return { fragmentId, fragmentType, index, total };
 };
 
-const reassembleFragments = (fragments: BitchatPacket[]): Message | null => {
+const reassembleFragments = (
+  fragments: BitchatPacket[],
+): AssembledData | null => {
   if (fragments.length === 0) {
     return null;
   }
 
-  const fragmentHeaderSize = 12;
+  const fragmentHeaderSize = 13;
 
   // Sort fragments by index to ensure correct order
   const sortedFragments = [...fragments].sort((a, b) => {
@@ -147,6 +150,7 @@ const reassembleFragments = (fragments: BitchatPacket[]): Message | null => {
 
   // Validate we have all fragments
   const metadata = extractFragmentMetadata(sortedFragments[0]);
+
   if (!metadata) {
     return null;
   }
@@ -187,14 +191,23 @@ const reassembleFragments = (fragments: BitchatPacket[]): Message | null => {
     offset += fragmentData.length;
   }
 
-  // Decode the reassembled payload back into a Message
-  try {
-    const message = fromBinaryPayload(reassembledPayload);
-    return message;
-  } catch (error) {
-    console.error("Failed to decode reassembled message:", error);
-    return null;
-  }
+  return {
+    data: reassembledPayload,
+    fragmentType: metadata.fragmentType,
+    fragmentId: metadata.fragmentId,
+  };
 };
 
-export { extractFragmentMetadata, fragmentMessage, reassembleFragments };
+interface AssembledData {
+  data: Uint8Array;
+  fragmentType: FragmentType;
+  fragmentId: Base64String;
+}
+
+export {
+  AssembledData,
+  extractFragmentMetadata,
+  fragmentPayload,
+  reassembleFragments
+};
+

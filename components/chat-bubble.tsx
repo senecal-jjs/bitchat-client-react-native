@@ -4,7 +4,7 @@ import { SvgXml } from "react-native-svg";
 
 interface ChatBubbleProps {
   message: Message;
-  peerId: string;
+  verificationKey: string;
 }
 
 // Xml strings for left and right curl svg
@@ -18,20 +18,20 @@ const curlLeft = `<svg width="17" height="21" viewBox="0 0 17 21" fill="none" xm
 </svg>
 `;
 
-export const ChatBubble = ({ message, peerId }: ChatBubbleProps) => {
+export const ChatBubble = ({ message, verificationKey }: ChatBubbleProps) => {
   return (
     <View>
       <View
         style={[
           styles.bubble,
-          message.senderPeerId === peerId
+          message.sender === verificationKey
             ? styles.myMessage
             : styles.theirMessage,
         ]}
       >
         <Text
           style={
-            message.senderPeerId === peerId
+            message.sender === verificationKey
               ? styles.myMessageText
               : styles.theirMessageText
           }
@@ -39,7 +39,7 @@ export const ChatBubble = ({ message, peerId }: ChatBubbleProps) => {
           {message.contents}
         </Text>
       </View>
-      {message.senderPeerId !== peerId ? (
+      {message.sender !== verificationKey ? (
         <SvgXml xml={curlLeft} width={20} height={20} style={styles.curlLeft} />
       ) : (
         <SvgXml

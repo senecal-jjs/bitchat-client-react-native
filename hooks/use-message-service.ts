@@ -70,7 +70,7 @@ export function useMessageService(): MessageService {
             );
             await sendFragments(fragments);
           } else {
-            await BleModule.broadcastPacketAsync(packet);
+            BleModule.broadcastPacketAsync(packet);
           }
         } catch (error) {
           console.error(`Failed to resend message ${message.id}:`, error);
@@ -112,7 +112,12 @@ export function useMessageService(): MessageService {
       console.log(
         `Message exceeds BLE MTU, fragmenting... [mtu: ${Constants.expoConfig.extra.ble.mtuLimitBytes}]`,
       );
-      const { fragments } = fragmentMessage(message, from, to);
+      const { fragments } = fragmentMessage(
+        message,
+        from,
+        to,
+        PacketType.MESSAGE,
+      );
       sendFragments(fragments);
     } else {
       console.log("broacasting packet");

@@ -17,7 +17,7 @@ class SQFragmentsRepository implements FragmentsRepository, Repository {
     packet: BitchatPacket,
   ): Promise<BitchatPacket> {
     const statement = await this.db.prepareAsync(
-      "INSERT INTO fragments (fragment_id, position, version, type, sender_id, recipient_id, timestamp, payload, signature, allowed_hops, route) VALUES ($fragment_id, $position, $version, $type, $sender_id, $recipient_id, $timestamp, $payload, $signature, $allowed_hops, $route)",
+      "INSERT INTO fragments (fragment_id, position, version, type, timestamp, payload, allowed_hops) VALUES ($fragment_id, $position, $version, $type, $timestamp, $payload, $allowed_hops)",
     );
 
     try {
@@ -26,13 +26,9 @@ class SQFragmentsRepository implements FragmentsRepository, Repository {
         $position: position,
         $version: packet.version,
         $type: packet.type,
-        $sender_id: packet.senderId,
-        $recipient_id: packet.recipientId,
         $timestamp: packet.timestamp,
         $payload: packet.payload,
-        $signature: packet.signature,
         $allowed_hops: packet.allowedHops,
-        $route: packet.route,
       });
 
       return packet;
@@ -50,13 +46,9 @@ class SQFragmentsRepository implements FragmentsRepository, Repository {
       const result = await statement.executeAsync<{
         version: number;
         type: number;
-        sender_id: string;
-        recipient_id: string;
         timestamp: number;
         payload: Uint8Array;
-        signature: string | null;
         allowed_hops: number;
-        route: Uint8Array;
       }>({ $fragment_id: fragmentId.getValue() });
 
       const rows = await result.getAllAsync();
@@ -64,13 +56,9 @@ class SQFragmentsRepository implements FragmentsRepository, Repository {
       return rows.map((row) => ({
         version: row.version,
         type: row.type,
-        senderId: row.sender_id,
-        recipientId: row.recipient_id,
         timestamp: row.timestamp,
         payload: row.payload,
-        signature: row.signature,
         allowedHops: row.allowed_hops,
-        route: row.route,
       }));
     } finally {
       await statement.finalizeAsync();

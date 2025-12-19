@@ -37,14 +37,14 @@ async function migrateDb(db: SQLiteDatabase) {
         id TEXT PRIMARY KEY NOT NULL, 
         sender TEXT NOT NULL, 
         contents TEXT NOT NULL, 
-        timestamp INTEGER NOT NULL, 
-        is_relay INTEGER NOT NULL, 
-        original_sender TEXT,
-        is_private INTEGER NOT NULL,
-        recipient_nickname TEXT,
-        sender_peer_id TEXT,
-        delivery_status INTEGER
+        timestamp INTEGER NOT NULL,
+        group_id TEXT,
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
       );
+      
+      CREATE INDEX idx_messages_timestamp ON messages(timestamp);
+      CREATE INDEX idx_messages_sender ON messages(sender);
+      CREATE INDEX idx_messages_group_id ON messages(group_id);
 
       CREATE TABLE IF NOT EXISTS fragments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,13 +52,9 @@ async function migrateDb(db: SQLiteDatabase) {
         position INTEGER NOT NULL,
         version INTEGER NOT NULL,
         type INTEGER NOT NULL,
-        sender_id TEXT NOT NULL,
-        recipient_id TEXT,
         timestamp INTEGER NOT NULL,
         payload BLOB NOT NULL,
-        signature TEXT,
         allowed_hops INTEGER NOT NULL,
-        route BLOB NOT NULL,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
       
@@ -69,13 +65,9 @@ async function migrateDb(db: SQLiteDatabase) {
         sender TEXT NOT NULL,
         contents TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
-        is_relay INTEGER NOT NULL,
-        original_sender TEXT,
-        is_private INTEGER NOT NULL,
-        recipient_nickname TEXT,
-        sender_peer_id TEXT,
-        delivery_status INTEGER,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        group_id TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS contacts (
@@ -84,12 +76,69 @@ async function migrateDb(db: SQLiteDatabase) {
         pseudonym TEXT NOT NULL,
         signature string NOT NULL,
         ecdh_public_key string NOT NULL,
+        verified_oob INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         UNIQUE(verification_key)
       );
       
       CREATE INDEX idx_contacts_pseudonym ON contacts(pseudonym);
+
+      CREATE TABLE IF NOT EXISTS groups (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        last_active_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+      );
+      
+      CREATE INDEX idx_groups_name ON groups(name);
+      CREATE INDEX idx_groups_last_active_at ON groups(last_active_at);
+
+      CREATE TABLE IF NOT EXISTS group_members (
+        group_id TEXT NOT NULL,
+        contact_id INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        PRIMARY KEY (group_id, contact_id),
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+        FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX idx_group_members_group_id ON group_members(group_id);
+      CREATE INDEX idx_group_members_contact_id ON group_members(contact_id);
+
+      CREATE TABLE IF NOT EXISTS incoming_packets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        version INTEGER NOT NULL,
+        type INTEGER NOT NULL,
+        timestamp INTEGER NOT NULL,
+        payload BLOB NOT NULL,
+        allowed_hops INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      
+      CREATE INDEX idx_incoming_packets_timestamp ON incoming_packets(timestamp);
+      CREATE INDEX idx_incoming_packets_type ON incoming_packets(type);
+      CREATE INDEX idx_incoming_packets_created_at ON incoming_packets(created_at);
+
+      CREATE TABLE IF NOT EXISTS relay_packets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        version INTEGER NOT NULL,
+        type INTEGER NOT NULL,
+        sender_id TEXT NOT NULL,
+        recipient_id TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        payload BLOB NOT NULL,
+        signature TEXT,
+        allowed_hops INTEGER NOT NULL,
+        route BLOB NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      
+      CREATE INDEX idx_relay_packets_timestamp ON relay_packets(timestamp);
+      CREATE INDEX idx_relay_packets_type ON relay_packets(type);
+      CREATE INDEX idx_relay_packets_sender_id ON relay_packets(sender_id);
+      CREATE INDEX idx_relay_packets_created_at ON relay_packets(created_at);
 `);
     currentDbVersion = 1;
   }

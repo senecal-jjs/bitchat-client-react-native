@@ -157,16 +157,15 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage = await alice.joinGroup(welcomeMessage);
     await members[10].applyUpdatePath(
-      pathUpdateMessage.ciphertext,
-      pathUpdateMessage.nonce,
+      pathUpdateMessage.updateMessage.ciphertext,
+      pathUpdateMessage.updateMessage.nonce,
       groupName,
-      alice.id!,
     );
   }, 30000);
 
   test("test_add_to_group", async () => {
     // We want to test the functionality of adding a member to the leftmost open node
-    const member = await Member.create("Alice");
+    let member = await Member.create("Alice");
     member.createGroup(2, "anonymous", 1);
     member.addToGroup("anonymous");
 
@@ -215,10 +214,9 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage = await member2.joinGroup(welcomeMessage);
     await member.applyUpdatePath(
-      pathUpdateMessage.ciphertext,
-      pathUpdateMessage.nonce,
+      pathUpdateMessage.updateMessage.ciphertext,
+      pathUpdateMessage.updateMessage.nonce,
       groupName,
-      member2.id!,
     );
 
     // Check that Alice has Bob in her tree. Bob occupies the node with id of 5
@@ -260,10 +258,9 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage = await member2.joinGroup(welcomeMessage);
     await member.applyUpdatePath(
-      pathUpdateMessage.ciphertext,
-      pathUpdateMessage.nonce,
+      pathUpdateMessage.updateMessage.ciphertext,
+      pathUpdateMessage.updateMessage.nonce,
       groupName,
-      member2.id!,
     );
 
     // Add Mike
@@ -273,16 +270,14 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage3 = await member3.joinGroup(welcomeMessage3);
     await member.applyUpdatePath(
-      pathUpdateMessage3.ciphertext,
-      pathUpdateMessage3.nonce,
+      pathUpdateMessage3.updateMessage.ciphertext,
+      pathUpdateMessage3.updateMessage.nonce,
       groupName,
-      member3.id!,
     );
     await member2.applyUpdatePath(
-      pathUpdateMessage3.ciphertext,
-      pathUpdateMessage3.nonce,
+      pathUpdateMessage3.updateMessage.ciphertext,
+      pathUpdateMessage3.updateMessage.nonce,
       groupName,
-      member3.id!,
     );
 
     // Verify Alice and Bob have Mike now
@@ -391,10 +386,9 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage = await member2.joinGroup(welcomeMessage);
     await member.applyUpdatePath(
-      pathUpdateMessage.ciphertext,
-      pathUpdateMessage.nonce,
+      pathUpdateMessage.updateMessage.ciphertext,
+      pathUpdateMessage.updateMessage.nonce,
       groupName,
-      member2.id!,
     );
 
     // Test that both Alice and Bob have the same root key material
@@ -452,16 +446,14 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage3 = await member3.joinGroup(welcomeMessage3);
     await member.applyUpdatePath(
-      pathUpdateMessage3.ciphertext,
-      pathUpdateMessage3.nonce,
+      pathUpdateMessage3.updateMessage.ciphertext,
+      pathUpdateMessage3.updateMessage.nonce,
       groupName,
-      member3.id!,
     );
     await member2.applyUpdatePath(
-      pathUpdateMessage3.ciphertext,
-      pathUpdateMessage3.nonce,
+      pathUpdateMessage3.updateMessage.ciphertext,
+      pathUpdateMessage3.updateMessage.nonce,
       groupName,
-      member3.id!,
     );
 
     const mikeGroup = member3.groups.get("anonymous");
@@ -592,7 +584,7 @@ describe("TreeKEM Member Tests", () => {
   });
 
   test("test_join_group", async () => {
-    const member = await Member.create("Bob");
+    let member = await Member.create("Bob");
     const member2 = await Member.create("Alice");
 
     member.createGroup(2, "anonymous", 1);
@@ -612,6 +604,10 @@ describe("TreeKEM Member Tests", () => {
     // Test that there are two members
     const aliceGroup = member2.groups.get("anonymous");
     expect(aliceGroup).toBeDefined();
+
+    // additional test for member state serialization
+    const json = member.toJSON();
+    member = Member.fromJSON(json);
 
     if (aliceGroup) {
       const aliceTree = aliceGroup.ratchetTree;
@@ -638,12 +634,15 @@ describe("TreeKEM Member Tests", () => {
 
       if (bobGroup) {
         const bobTree = bobGroup.ratchetTree;
+
         const { ciphertext } = aliceTree
           .getNodeById(aliceTree.height, 2)!
           .publicKey!.encrypt(message);
+
         const { message: m } = bobTree
           .getNodeById(aliceTree.height, 2)!
           .privateKey!.decrypt(ciphertext);
+
         expect(m).toEqual(message);
 
         // Test that Bob's tree doesn't yet have Alice's key info
@@ -677,10 +676,9 @@ describe("TreeKEM Member Tests", () => {
     );
     const pathUpdateMessage = await member2.joinGroup(welcomeMessage);
     await member.applyUpdatePath(
-      pathUpdateMessage.ciphertext,
-      pathUpdateMessage.nonce,
+      pathUpdateMessage.updateMessage.ciphertext,
+      pathUpdateMessage.updateMessage.nonce,
       groupName,
-      member2.id!,
     );
 
     // Test encryption/decryption before refresh
@@ -713,7 +711,6 @@ describe("TreeKEM Member Tests", () => {
       pathUpdateMessageRefresh.ciphertext,
       pathUpdateMessageRefresh.nonce,
       groupName,
-      member.id!,
     );
 
     // Old message should NOT decrypt correctly with new keys

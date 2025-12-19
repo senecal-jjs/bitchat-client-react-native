@@ -35,38 +35,21 @@
 /// - Optional fields for new features
 ///
 
-import { DeliveryStatus, Message } from "@/types/global";
-import ByteArrayBuilder from "@/utils/ByteArrayBuilder";
+import { Message } from "@/types/global";
+import ByteArrayBuilder from "@/utils/byte-array-builder";
 
 // Message format:
-// - Flags: 1 byte (bit 0: isRelay, bit 1: isPrivate, bit 2: hasOriginalSender, bit 3: hasRecipientNickname, bit 4: hasSenderPeerID, bit 5: hasMentions)
 // - Timestamp: 8 bytes (milliseconds since epoch)
 // - ID length: 1 byte
 // - ID: variable
+// - Group ID length: 1 byte
+// - Group ID: variable
 // - Sender length: 1 byte
 // - Sender: variable
 // - Content length: 2 bytes
 // - Content: variable
-// Optional fields based on flags:
-// - Original sender length + data
-// - Recipient nickname length + data
-// - Sender peer ID length + data
-// - Mentions array
 const toBinaryPayload = (message: Message): Uint8Array | null => {
   const buffer = new ByteArrayBuilder();
-  let flags = 0;
-
-  // Set flags based on message properties
-  if (message.isRelay) flags |= 0x01;
-  if (message.isPrivate) flags |= 0x02;
-  if (message.originalSender) flags |= 0x04;
-  if (message.recipientNickname) flags |= 0x08;
-  if (message.senderPeerId) flags |= 0x10;
-  // Note: mentions not implemented in Message type yet, but flag reserved
-  // if (message.mentions && message.mentions.length > 0) flags |= 0x20
-
-  // Append flags
-  buffer.append(new Uint8Array([flags]));
 
   // Timestamp (in milliseconds) - 8 bytes big-endian
   const timestampMs = BigInt(message.timestamp);
@@ -78,6 +61,11 @@ const toBinaryPayload = (message: Message): Uint8Array | null => {
   const encodedId = textEncoder.encode(message.id);
   buffer.append(new Uint8Array([Math.min(encodedId.length, 255)]));
   buffer.append(encodedId.subarray(0, 255));
+
+  // Group ID field
+  const encodedGroupId = textEncoder.encode(message.groupId);
+  buffer.append(new Uint8Array([Math.min(encodedGroupId.length, 255)]));
+  buffer.append(encodedGroupId.subarray(0, 255));
 
   // Sender field
   const encodedSender = textEncoder.encode(message.sender);
@@ -92,48 +80,6 @@ const toBinaryPayload = (message: Message): Uint8Array | null => {
   buffer.append(new Uint8Array([contentLength & 0xff]));
   buffer.append(encodedContent.subarray(0, contentLength));
 
-  // Optional fields based on flags
-
-  // Original sender (if flag bit 2 is set)
-  if (message.originalSender) {
-    const encodedOriginalSender = textEncoder.encode(message.originalSender);
-    buffer.append(
-      new Uint8Array([Math.min(encodedOriginalSender.length, 255)]),
-    );
-    buffer.append(encodedOriginalSender.subarray(0, 255));
-  }
-
-  // Recipient nickname (if flag bit 3 is set)
-  if (message.recipientNickname != null) {
-    const encodedRecipientNickname = textEncoder.encode(
-      message.recipientNickname,
-    );
-    buffer.append(
-      new Uint8Array([Math.min(encodedRecipientNickname.length, 255)]),
-    );
-    buffer.append(encodedRecipientNickname.subarray(0, 255));
-  }
-
-  // Sender peer ID (if flag bit 4 is set)
-  if (message.senderPeerId != null) {
-    const encodedSenderPeerId = textEncoder.encode(message.senderPeerId);
-    buffer.append(new Uint8Array([Math.min(encodedSenderPeerId.length, 255)]));
-    buffer.append(encodedSenderPeerId.subarray(0, 255));
-  }
-
-  // Mentions array (if flag bit 5 is set) - not implemented in Message type yet
-  // This is a placeholder for future implementation
-  /*
-    if (message.mentions && message.mentions.length > 0) {
-        buffer.append(new Uint8Array([Math.min(message.mentions.length, 255)]))
-        for (let i = 0; i < Math.min(message.mentions.length, 255); i++) {
-            const encodedMention = textEncoder.encode(message.mentions[i])
-            buffer.append(new Uint8Array([Math.min(encodedMention.length, 255)]))
-            buffer.append(encodedMention.subarray(0, 255))
-        }
-    }
-    */
-
   return buffer.build();
 };
 
@@ -141,7 +87,7 @@ const fromBinaryPayload = (data: Uint8Array): Message => {
   // Create a copy to prevent modification issues
   const dataCopy = new Uint8Array(data);
 
-  // Minimum required size: flags(1) + timestamp(8) + id_len(1) + sender_len(1) + content_len(2) = 13 bytes
+  // Minimum required size: timestamp(8) + id_len(1) + group_id_len(1) + sender_len(1) + content_len(2) = 13 bytes
   if (dataCopy.length < 13) {
     throw Error(
       `Could not convert to Message from binary payload. Data does not meet minimum size. [minSize: 13, binarySize: ${dataCopy.length}]`,
@@ -149,16 +95,6 @@ const fromBinaryPayload = (data: Uint8Array): Message => {
   }
 
   let offset = 0;
-
-  // Parse flags
-  if (offset >= dataCopy.length) throw Error("Offset exceed data length.");
-  const flags = dataCopy[offset++];
-  const isRelay = (flags & 0x01) !== 0;
-  const isPrivate = (flags & 0x02) !== 0;
-  const hasOriginalSender = (flags & 0x04) !== 0;
-  const hasRecipientNickname = (flags & 0x08) !== 0;
-  const hasSenderPeerId = (flags & 0x10) !== 0;
-  const hasMentions = (flags & 0x20) !== 0;
 
   // Parse timestamp (8 bytes big-endian)
   if (offset + 8 > dataCopy.length) throw Error("Offset exceed data length.");
@@ -181,6 +117,16 @@ const fromBinaryPayload = (data: Uint8Array): Message => {
     crypto.randomUUID();
   offset += idLength;
 
+  // Parse group ID
+  if (offset >= dataCopy.length) throw Error("Offset exceed data length.");
+  const groupIdLength = dataCopy[offset++];
+  if (offset + groupIdLength > dataCopy.length)
+    throw Error("Offset exceed data length.");
+  const groupId =
+    textDecoder.decode(dataCopy.slice(offset, offset + groupIdLength)) ||
+    "default";
+  offset += groupIdLength;
+
   // Parse sender
   if (offset >= dataCopy.length) throw Error("Offset exceed data length.");
   const senderLength = dataCopy[offset++];
@@ -202,75 +148,13 @@ const fromBinaryPayload = (data: Uint8Array): Message => {
     textDecoder.decode(dataCopy.slice(offset, offset + contentLength)) || "";
   offset += contentLength;
 
-  // Parse optional fields based on flags
-  let originalSender: string | null = null;
-  if (hasOriginalSender && offset < dataCopy.length) {
-    const length = dataCopy[offset++];
-    if (offset + length <= dataCopy.length) {
-      originalSender =
-        textDecoder.decode(dataCopy.slice(offset, offset + length)) || null;
-      offset += length;
-    }
-  }
-
-  let recipientNickname: string | null = null;
-  if (hasRecipientNickname && offset < dataCopy.length) {
-    const length = dataCopy[offset++];
-    if (offset + length <= dataCopy.length) {
-      recipientNickname =
-        textDecoder.decode(dataCopy.slice(offset, offset + length)) || null;
-      offset += length;
-    }
-  }
-
-  let senderPeerId: string | null = null;
-  if (hasSenderPeerId && offset < dataCopy.length) {
-    const length = dataCopy[offset++];
-    if (offset + length <= dataCopy.length) {
-      senderPeerId =
-        textDecoder.decode(dataCopy.slice(offset, offset + length)) || null;
-      offset += length;
-    }
-  }
-
-  // Parse mentions array (reserved for future use)
-  // Note: mentions not implemented in Message type yet, but parsing logic ready
-  /*
-    let mentions: string[] | null = null
-    if (hasMentions && offset < dataCopy.length) {
-        const mentionCount = dataCopy[offset++]
-        if (mentionCount > 0) {
-            mentions = []
-            for (let i = 0; i < mentionCount; i++) {
-                if (offset < dataCopy.length) {
-                    const length = dataCopy[offset++]
-                    if (offset + length <= dataCopy.length) {
-                        const mention = textDecoder.decode(dataCopy.slice(offset, offset + length))
-                        if (mention) {
-                            mentions.push(mention)
-                        }
-                        offset += length
-                    }
-                }
-            }
-        }
-    }
-    */
-
   // Create and return the Message object
-  const deliveryStatus = isPrivate ? DeliveryStatus.SENDING : null;
-
   const message: Message = {
     id,
+    groupId,
     sender,
     contents,
     timestamp,
-    isRelay,
-    originalSender,
-    isPrivate,
-    recipientNickname,
-    senderPeerId,
-    deliveryStatus,
   };
 
   return message;

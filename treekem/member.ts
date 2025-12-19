@@ -8,6 +8,9 @@ import {
   BlankMessage,
   Ciphertext,
   Credentials,
+  SerializedCredentials,
+  SerializedGroup,
+  SerializedMember,
   SerializedTree,
   UpdateMaterial,
   UpdateMessage,
@@ -146,10 +149,9 @@ export class Member {
       // Apply update to all synchronized members
       for (const syncMember of synchronizedGroup) {
         await syncMember.applyUpdatePath(
-          pathUpdateMessage.ciphertext,
-          pathUpdateMessage.nonce,
+          pathUpdateMessage.updateMessage.ciphertext,
+          pathUpdateMessage.updateMessage.nonce,
           groupName,
-          joiningMember.id!,
         );
       }
 
@@ -158,6 +160,10 @@ export class Member {
     }
 
     return synchronizedGroup;
+  }
+
+  getGroupNames(): string[] {
+    return [...this.groups.keys()];
   }
 
   /**
@@ -283,7 +289,9 @@ export class Member {
   /**
    * Join a group using welcome message
    */
-  async joinGroup(welcomeMessage: WelcomeMessage): Promise<UpdateMessage> {
+  async joinGroup(
+    welcomeMessage: WelcomeMessage,
+  ): Promise<{ updateMessage: UpdateMessage; treeInfo: SerializedTree }> {
     // Decrypt symmetric key
     const ecdhKeyPair = new ECDHKeyPair(
       this.ecdhPublicKey,
@@ -320,8 +328,10 @@ export class Member {
     group.admins = treeInfo.admins;
     this.groups.set(treeInfo.groupName, group);
 
+    const updateMessage = await this.addToGroup(treeInfo.groupName);
+
     // Add self to leftmost open leaf
-    return this.addToGroup(treeInfo.groupName);
+    return { updateMessage, treeInfo };
   }
 
   /**
@@ -395,6 +405,7 @@ export class Member {
     if (!creds) throw new Error("No credentials");
 
     const pathUpdateMessage: UpdateMaterial = {
+      nodeId,
       ancestors,
       publicPathMaterial: ancestorsNewPublicMaterial,
       privPathMaterial: updatePath,
@@ -488,6 +499,7 @@ export class Member {
     }
 
     const pathUpdateMessage: UpdateMaterial = {
+      nodeId,
       ancestors,
       publicPathMaterial: ancestorsNewPublicMaterial,
       privPathMaterial: ancestorsPathUpdate,
@@ -508,7 +520,6 @@ export class Member {
     pathUpdateMessage: Uint8Array,
     nonce: Uint8Array,
     groupName: string,
-    updatingNode: number,
   ): Promise<void> {
     const group = this.groups.get(groupName);
     if (!group) throw new Error(`Group ${groupName} not found`);
@@ -527,6 +538,7 @@ export class Member {
 
     // Convert objects back to Uint8Arrays
     const updateMaterial: UpdateMaterial = {
+      nodeId: parsedMaterial.nodeId,
       ancestors: parsedMaterial.ancestors,
       publicPathMaterial: parsedMaterial.publicPathMaterial.map(
         (obj: any) => new Uint8Array(Object.values(obj)),
@@ -605,7 +617,10 @@ export class Member {
     }
 
     // Update the updating node's public key and credentials
-    const updatingNodeObj = tree.getNodeById(tree.height, updatingNode);
+    const updatingNodeObj = tree.getNodeById(
+      tree.height,
+      updateMaterial.nodeId,
+    );
     if (updatingNodeObj) {
       updatingNodeObj.publicKey = PublicKey.fromBytesModOrder(
         updateMaterial.publicKey,
@@ -868,5 +883,138 @@ export class Member {
     }
 
     return plaintext;
+  }
+
+  /**
+   * Serialize member to JSON-compatible format
+   */
+  toJSON(): SerializedMember {
+    const serializedGroups: [string, SerializedGroup][] = [];
+
+    for (const [groupName, group] of this.groups.entries()) {
+      // Collect ALL public keys, private keys, and credentials from the tree
+      const publicKeys = new Map<number, string>();
+      const privateKeys = new Map<number, string>();
+      const credentials = new Map<number, SerializedCredentials>();
+
+      const allNodes = group.ratchetTree.getAllNodes(group.ratchetTree.height);
+
+      for (const nodeId of allNodes) {
+        const node = group.ratchetTree.getNodeById(
+          group.ratchetTree.height,
+          nodeId,
+        );
+        if (node) {
+          if (node.publicKey) {
+            publicKeys.set(
+              nodeId,
+              Buffer.from(node.publicKey.toBytes()).toString("base64"),
+            );
+          }
+          if (node.privateKey) {
+            privateKeys.set(
+              nodeId,
+              Buffer.from(node.privateKey.toBytes()).toString("base64"),
+            );
+          }
+          if (node.credential) {
+            credentials.set(nodeId, {
+              verificationKey: Buffer.from(
+                node.credential.verificationKey,
+              ).toString("base64"),
+              pseudonym: node.credential.pseudonym,
+              signature: Buffer.from(node.credential.signature).toString(
+                "base64",
+              ),
+              ecdhPublicKey: Buffer.from(
+                node.credential.ecdhPublicKey,
+              ).toString("base64"),
+            });
+          }
+        }
+      }
+
+      const serializedTree: SerializedTree = {
+        groupName,
+        publicKeys: Array.from(publicKeys.entries()),
+        privateKeys: Array.from(privateKeys.entries()),
+        credentials: Array.from(credentials.entries()),
+        capacity: group.ratchetTree.capacity,
+        threshold: group.threshold,
+        admins: group.admins,
+        actionMemberCred: this.credential,
+      };
+
+      const serializedGroup: SerializedGroup = {
+        threshold: group.threshold,
+        admins: [...group.admins],
+        ratchetTree: serializedTree,
+      };
+
+      serializedGroups.push([groupName, serializedGroup]);
+    }
+
+    const serializedCredential: SerializedCredentials = {
+      verificationKey: Buffer.from(this.credential.verificationKey).toString(
+        "base64",
+      ),
+      pseudonym: this.credential.pseudonym,
+      signature: Buffer.from(this.credential.signature).toString("base64"),
+      ecdhPublicKey: Buffer.from(this.credential.ecdhPublicKey).toString(
+        "base64",
+      ),
+    };
+
+    return {
+      pseudonym: this.pseudonym,
+      ecdhPublicKey: Buffer.from(this.ecdhPublicKey).toString("base64"),
+      ecdhPrivateKey: Buffer.from(this.ecdhPrivateKey).toString("base64"),
+      groups: serializedGroups,
+      id: this.id,
+      credential: serializedCredential,
+      signingKey: Buffer.from(this.signingKey).toString("base64"),
+      messageCounter: this.messageCounter,
+    };
+  }
+
+  /**
+   * Deserialize member from JSON-compatible format
+   */
+  static fromJSON(serialized: SerializedMember): Member {
+    const credential: Credentials = {
+      verificationKey: Buffer.from(
+        serialized.credential.verificationKey,
+        "base64",
+      ),
+      pseudonym: serialized.credential.pseudonym,
+      signature: Buffer.from(serialized.credential.signature, "base64"),
+      ecdhPublicKey: Buffer.from(serialized.credential.ecdhPublicKey, "base64"),
+    };
+
+    const member = new Member(
+      serialized.pseudonym,
+      Buffer.from(serialized.ecdhPublicKey, "base64"),
+      Buffer.from(serialized.ecdhPrivateKey, "base64"),
+      credential,
+      Buffer.from(serialized.signingKey, "base64"),
+    );
+
+    member.id = serialized.id;
+    member.messageCounter = serialized.messageCounter;
+
+    // Deserialize groups
+    for (const [groupName, serializedGroup] of serialized.groups) {
+      const tree = BinaryTree.deserializeTree(
+        new Map(serializedGroup.ratchetTree.publicKeys),
+        new Map(serializedGroup.ratchetTree.privateKeys),
+        new Map(serializedGroup.ratchetTree.credentials),
+        serializedGroup.ratchetTree.capacity,
+      );
+      const group = new Group(serializedGroup.threshold, tree);
+      group.admins = [...serializedGroup.admins];
+      member.groups.set(groupName, group);
+    }
+
+    return member;
   }
 }

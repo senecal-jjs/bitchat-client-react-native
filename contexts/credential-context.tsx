@@ -1,7 +1,9 @@
-import { Credentials, SerializedCredentials } from "@/treekem/types";
-import { ECDHKeyPair, SignatureMaterial } from "@/treekem/upke";
-import { generateRandomNameCapitalized } from "@/utils/names";
+import { Member } from "@/treekem/member";
+import { Credentials } from "@/treekem/types";
+import { fetchFromFile, saveToAppDirectory } from "@/utils/file";
+import { generateRandomName } from "@/utils/names";
 import { secureFetch, secureStore } from "@/utils/secure-store";
+import { getRandomBytes } from "expo-crypto";
 import React, {
   createContext,
   ReactNode,
@@ -10,16 +12,19 @@ import React, {
   useState,
 } from "react";
 
-const CREDENTIALS_KEY = "treekem_credentials";
-const SIGNING_MATERIAL_KEY = "treekem_signing_material";
-const ECDH_KEYPAIR_KEY = "treekem_ecdh_keypair";
+const MEMBER_STATE_FILENAME = "member_state.enc";
+const ENCRYPTION_KEY_STORE_KEY = "member_encryption_key";
+const NONCE_STORE_KEY = "member_nonce";
 
 interface CredentialContextType {
+  member: Member | null;
   credentials: Credentials | null;
   isLoading: boolean;
   pseudonym: string | null;
   updatePseudonym: (newPseudonym: string) => Promise<void>;
-  regenerateCredentials: (pseudonym: string) => Promise<void>;
+  regenerateMember: (pseudonym: string) => Promise<void>;
+  saveMember: () => Promise<void>;
+  deleteMember: () => Promise<void>;
 }
 
 const CredentialContext = createContext<CredentialContextType | undefined>(
@@ -29,102 +34,95 @@ const CredentialContext = createContext<CredentialContextType | undefined>(
 export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const [member, setMember] = useState<Member | null>(null);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [pseudonym, setPseudonym] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * Load credentials from secure store or generate new ones
+   * Load member from encrypted file or create new one
    */
   useEffect(() => {
-    const initializeCredentials = async () => {
+    const initializeMember = async () => {
       try {
         setIsLoading(true);
 
-        // Try to load existing credentials
-        const storedCreds = await secureFetch(CREDENTIALS_KEY);
-        const serialized: SerializedCredentials = JSON.parse(storedCreds);
+        // Try to load encryption key and nonce from secure store
+        const encryptionKeyBase64 = await secureFetch(ENCRYPTION_KEY_STORE_KEY);
+        const nonceBase64 = await secureFetch(NONCE_STORE_KEY);
 
-        const creds: Credentials = {
-          verificationKey: Buffer.from(serialized.verificationKey, "base64"),
-          pseudonym: serialized.pseudonym,
-          signature: Buffer.from(serialized.signature, "base64"),
-          ecdhPublicKey: Buffer.from(serialized.ecdhPublicKey, "base64"),
-        };
+        const encryptionKey = Buffer.from(encryptionKeyBase64, "base64");
+        const nonce = { data: Buffer.from(nonceBase64, "base64") };
 
-        setCredentials(creds);
-        setPseudonym(creds.pseudonym);
+        // Load encrypted member state from file
+        const storedMemberState = await fetchFromFile(
+          MEMBER_STATE_FILENAME,
+          encryptionKey,
+          nonce,
+        );
+
+        if (!storedMemberState) {
+          throw new Error("Failed to load member state from file");
+        }
+
+        const loadedMember = Member.fromJSON(JSON.parse(storedMemberState));
+
+        console.log("Loaded member: ", loadedMember.credential.ecdhPublicKey);
+
+        setMember(loadedMember);
+        setCredentials(loadedMember.credential);
+        setPseudonym(loadedMember.pseudonym);
       } catch {
-        // No credentials exist, generate new ones with default pseudonym
-        console.log("No credentials found, generating new ones");
-        await generateNewCredentials(generateRandomNameCapitalized());
+        // No member state exists, create new member
+        console.log("No member state found, creating new member");
+        await generateNewMember(generateRandomName());
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeCredentials();
+    initializeMember();
   }, []);
 
   /**
-   * Generate new credentials and store them securely
+   * Generate new member and store in encrypted file
    */
-  const generateNewCredentials = async (newPseudonym: string) => {
+  const generateNewMember = async (newPseudonym: string) => {
     try {
       setIsLoading(true);
 
-      // Generate signing material (Ed25519)
-      const signingMaterial = SignatureMaterial.generate();
+      const newMember = await Member.create(newPseudonym);
 
-      // Generate ECDH keypair (X25519)
-      const ecdhKeyPair = ECDHKeyPair.generate();
+      // Generate encryption key (256-bit for AES-256)
+      const encryptionKey = getRandomBytes(32);
 
-      // Create signature
-      const signature = signingMaterial.sign(signingMaterial.publicKey);
-
-      // Create credentials
-      const creds: Credentials = {
-        verificationKey: signingMaterial.publicKey,
-        pseudonym: newPseudonym,
-        signature,
-        ecdhPublicKey: ecdhKeyPair.publicKey,
-      };
-
-      // Serialize for storage
-      const serialized: SerializedCredentials = {
-        verificationKey: Buffer.from(creds.verificationKey).toString("base64"),
-        pseudonym: creds.pseudonym,
-        signature: Buffer.from(creds.signature).toString("base64"),
-        ecdhPublicKey: Buffer.from(creds.ecdhPublicKey).toString("base64"),
-      };
-
-      // Store credentials
-      await secureStore(CREDENTIALS_KEY, JSON.stringify(serialized));
-
-      // Store signing material (private key)
-      await secureStore(
-        SIGNING_MATERIAL_KEY,
-        JSON.stringify({
-          publicKey: Buffer.from(signingMaterial.publicKey).toString("base64"),
-          privateKey: Buffer.from(signingMaterial.privateKey).toString(
-            "base64",
-          ),
-        }),
+      // Serialize and store member state in encrypted file
+      const serialized = newMember.toJSON();
+      const nonce = await saveToAppDirectory(
+        JSON.stringify(serialized),
+        MEMBER_STATE_FILENAME,
+        encryptionKey,
       );
 
-      // Store ECDH keypair (private key)
+      if (!nonce) {
+        throw new Error("Failed to save member state to file");
+      }
+
+      // Store encryption key and nonce in secure store
       await secureStore(
-        ECDH_KEYPAIR_KEY,
-        JSON.stringify({
-          publicKey: Buffer.from(ecdhKeyPair.publicKey).toString("base64"),
-          privateKey: Buffer.from(ecdhKeyPair.privateKey).toString("base64"),
-        }),
+        ENCRYPTION_KEY_STORE_KEY,
+        Buffer.from(encryptionKey).toString("base64"),
+      );
+      await secureStore(
+        NONCE_STORE_KEY,
+        Buffer.from(nonce.data).toString("base64"),
       );
 
-      setCredentials(creds);
+      setMember(newMember);
+      setCredentials(newMember.credential);
       setPseudonym(newPseudonym);
     } catch (error) {
-      console.error("Failed to generate credentials:", error);
+      console.error("Failed to generate member:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -138,41 +136,26 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
     try {
       setIsLoading(true);
 
-      // Load existing signing material
-      const signingData = await secureFetch(SIGNING_MATERIAL_KEY);
-      const { publicKey: pubKeyBase64, privateKey: privKeyBase64 } =
-        JSON.parse(signingData);
+      if (!member) {
+        throw new Error("No member loaded");
+      }
 
-      const signingMaterial = new SignatureMaterial(
-        Buffer.from(pubKeyBase64, "base64"),
-        Buffer.from(privKeyBase64, "base64"),
-      );
+      // Update member pseudonym
+      member.pseudonym = newPseudonym;
 
-      // Create new signature with updated pseudonym
-      const signature = signingMaterial.sign(signingMaterial.publicKey);
-
-      // Update credentials
-      const updatedCreds: Credentials = {
-        ...credentials!,
+      // Update credential with new signature
+      const signature = member.signingKey;
+      member.credential = {
+        verificationKey: member.credential.verificationKey,
         pseudonym: newPseudonym,
-        signature,
+        signature: signature,
+        ecdhPublicKey: member.credential.ecdhPublicKey,
       };
 
-      // Serialize and store
-      const serialized: SerializedCredentials = {
-        verificationKey: Buffer.from(updatedCreds.verificationKey).toString(
-          "base64",
-        ),
-        pseudonym: updatedCreds.pseudonym,
-        signature: Buffer.from(updatedCreds.signature).toString("base64"),
-        ecdhPublicKey: Buffer.from(updatedCreds.ecdhPublicKey).toString(
-          "base64",
-        ),
-      };
+      // Save updated member state to encrypted file
+      await saveMember();
 
-      await secureStore(CREDENTIALS_KEY, JSON.stringify(serialized));
-
-      setCredentials(updatedCreds);
+      setCredentials(member.credential);
       setPseudonym(newPseudonym);
     } catch (error) {
       console.error("Failed to update pseudonym:", error);
@@ -183,18 +166,68 @@ export const CredentialProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   /**
-   * Regenerate all credentials (new keys)
+   * Regenerate entire member (new keys)
    */
-  const regenerateCredentials = async (newPseudonym: string) => {
-    await generateNewCredentials(newPseudonym);
+  const regenerateMember = async (newPseudonym: string) => {
+    await generateNewMember(newPseudonym);
+  };
+
+  /**
+   * Save current member state to encrypted file
+   */
+  const saveMember = async () => {
+    if (!member) {
+      throw new Error("No member to save");
+    }
+
+    try {
+      // Load encryption key and nonce from secure store
+      const encryptionKeyBase64 = await secureFetch(ENCRYPTION_KEY_STORE_KEY);
+
+      const encryptionKey = Buffer.from(encryptionKeyBase64, "base64");
+
+      // Delete existing file and create new one
+      const { File, Paths } = await import("expo-file-system");
+      const existingFile = new File(Paths.cache, MEMBER_STATE_FILENAME);
+      if (existingFile.exists) {
+        existingFile.delete();
+      }
+
+      // Serialize and save to encrypted file
+      const serialized = member.toJSON();
+      const nonce = await saveToAppDirectory(
+        JSON.stringify(serialized),
+        MEMBER_STATE_FILENAME,
+        encryptionKey,
+      );
+      await secureStore(
+        NONCE_STORE_KEY,
+        Buffer.from(nonce!.data).toString("base64"),
+      );
+    } catch (error) {
+      console.error("Failed to save member:", error);
+      throw error;
+    }
+  };
+
+  const deleteMember = async () => {
+    // Delete existing file and create new one
+    const { File, Paths } = await import("expo-file-system");
+    const existingFile = new File(Paths.cache, MEMBER_STATE_FILENAME);
+    if (existingFile.exists) {
+      existingFile.delete();
+    }
   };
 
   const value: CredentialContextType = {
+    member,
     credentials,
     isLoading,
     pseudonym,
     updatePseudonym,
-    regenerateCredentials,
+    regenerateMember,
+    saveMember,
+    deleteMember,
   };
 
   return (
@@ -214,3 +247,8 @@ export const useCredentials = (): CredentialContextType => {
   }
   return context;
 };
+
+/**
+ * Alias for useCredentials (singular form)
+ */
+export const useCredential = useCredentials;

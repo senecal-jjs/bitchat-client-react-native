@@ -1,4 +1,4 @@
-import { DeliveryStatus, Message } from "@/types/global";
+import { Message } from "@/types/global";
 import * as SQLite from "expo-sqlite";
 import OutgoingMessagesRepository from "../specs/outgoing-messages-repository";
 import Repository from "../specs/repository";
@@ -14,7 +14,7 @@ class SQOutgoingMessagesRepository
 
   async create(message: Message): Promise<Message> {
     const statement = await this.db.prepareAsync(
-      "INSERT INTO outgoing_messages (id, sender, contents, timestamp, is_relay, original_sender, is_private, recipient_nickname, sender_peer_id, delivery_status) VALUES ($id, $sender, $contents, $timestamp, $isRelay, $originalSender, $isPrivate, $recipientNickname, $senderPeerId, $deliveryStatus)",
+      "INSERT INTO outgoing_messages (id, sender, contents, timestamp, group_id) VALUES ($id, $sender, $contents, $timestamp, $groupId)",
     );
 
     try {
@@ -23,12 +23,7 @@ class SQOutgoingMessagesRepository
         $sender: message.sender,
         $contents: message.contents,
         $timestamp: message.timestamp,
-        $isRelay: message.isRelay ? 1 : 0,
-        $originalSender: message.originalSender,
-        $isPrivate: message.isPrivate ? 1 : 0,
-        $recipientNickname: message.recipientNickname,
-        $senderPeerId: message.senderPeerId,
-        $deliveryStatus: message.deliveryStatus,
+        $groupId: message.groupId,
       });
 
       return message;
@@ -49,12 +44,7 @@ class SQOutgoingMessagesRepository
         sender: string;
         contents: string;
         timestamp: number;
-        isRelay: number;
-        originalSender: string | null;
-        isPrivate: number;
-        recipientNickname: string | null;
-        senderPeerId: string | null;
-        deliveryStatus: DeliveryStatus | null;
+        group_id: string;
       }>({ $id: messageId });
 
       const row = await result.getFirstAsync();
@@ -82,24 +72,29 @@ class SQOutgoingMessagesRepository
     }
   }
 
-  async getAll(): Promise<Message[]> {
-    const statement = await this.db.prepareAsync(
-      "SELECT * FROM outgoing_messages ORDER BY timestamp ASC",
-    );
+  async getAll(limit?: number): Promise<Message[]> {
+    const query = limit
+      ? "SELECT * FROM outgoing_messages ORDER BY timestamp ASC LIMIT $limit"
+      : "SELECT * FROM outgoing_messages ORDER BY timestamp ASC";
+
+    const statement = await this.db.prepareAsync(query);
 
     try {
-      const result = await statement.executeAsync<{
-        id: string;
-        sender: string;
-        contents: string;
-        timestamp: number;
-        isRelay: number;
-        originalSender: string | null;
-        isPrivate: number;
-        recipientNickname: string | null;
-        senderPeerId: string | null;
-        deliveryStatus: DeliveryStatus | null;
-      }>();
+      const result = limit
+        ? await statement.executeAsync<{
+            id: string;
+            sender: string;
+            contents: string;
+            timestamp: number;
+            group_id: string;
+          }>({ $limit: limit })
+        : await statement.executeAsync<{
+            id: string;
+            sender: string;
+            contents: string;
+            timestamp: number;
+            group_id: string;
+          }>();
 
       const rows = await result.getAllAsync();
 
@@ -129,31 +124,20 @@ class SQOutgoingMessagesRepository
 
   /**
    * Convert database row to Message object
-   * Handles type conversions for boolean fields stored as integers
    */
   private mapRowToMessage(row: {
     id: string;
     sender: string;
     contents: string;
     timestamp: number;
-    isRelay: number;
-    originalSender: string | null;
-    isPrivate: number;
-    recipientNickname: string | null;
-    senderPeerId: string | null;
-    deliveryStatus: DeliveryStatus | null;
+    group_id: string;
   }): Message {
     return {
       id: row.id,
+      groupId: row.group_id,
       sender: row.sender,
       contents: row.contents,
       timestamp: row.timestamp,
-      isRelay: Boolean(row.isRelay),
-      originalSender: row.originalSender,
-      isPrivate: Boolean(row.isPrivate),
-      recipientNickname: row.recipientNickname,
-      senderPeerId: row.senderPeerId,
-      deliveryStatus: row.deliveryStatus,
     };
   }
 }

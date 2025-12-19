@@ -15,61 +15,82 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
-import { useMessageProvider } from "@/contexts/message-context";
-import { useMessageService } from "@/hooks/use-message-service";
-import { DeliveryStatus, Message } from "@/types/global";
-import { secureFetch } from "@/utils/secure-store";
-
-// TODO (create during onboarding)
-// getRandomBytes(8).then((bytes) => secureStore("peerId", bytes.toString()));
+import { useCredential } from "@/contexts/credential-context";
+import { GroupsRepositoryToken, useRepos } from "@/contexts/repository-context";
+import { useGroupMessages } from "@/hooks/use-group-messages";
+import { useMessageSender } from "@/hooks/use-message-sender";
+import GroupsRepository from "@/repos/specs/groups-repository";
+import { Message } from "@/types/global";
+import { uint8ArrayToHexString } from "@/utils/string";
 
 export default function Chat() {
   const navigation = useNavigation();
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
-  const [peerId, setPeerId] = useState<string | null>(null);
-  const { sendMessage } = useMessageService();
-  const { messages } = useMessageProvider();
-  // A ref to automatically scroll the message list
+  const { member } = useCredential();
+  const { sendMessage } = useMessageSender();
+  const { messages, isLoading, isLoadingMore, hasMore, loadMore } =
+    useGroupMessages(chatId);
+  const { getRepo } = useRepos();
+  const groupsRepo = getRepo<GroupsRepository>(GroupsRepositoryToken);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    navigation.setOptions({
-      title: "Contact",
-    });
-  }, [navigation]);
+    async function getGroupName() {
+      const group = await groupsRepo.get(chatId);
 
-  useEffect(() => {
-    console.log("fetching peer id");
-    secureFetch("peerId").then((peerId) => setPeerId(peerId));
-  }, []);
+      navigation.setOptions({
+        title: group?.name ?? "Uknown Group",
+      });
+    }
+
+    getGroupName();
+  });
 
   const renderMessage = ({ item }: { item: Message }) => {
-    return <ChatBubble message={item} peerId={peerId!} />;
+    return (
+      <ChatBubble
+        message={item}
+        verificationKey={uint8ArrayToHexString(
+          member?.credential.verificationKey!,
+        )}
+      />
+    );
+  };
+
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <Text style={{ color: "gray" }}>Loading more messages...</Text>
+      </View>
+    );
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !isLoadingMore) {
+      loadMore();
+    }
   };
 
   // State for the new message input
   const [newMessage, setNewMessage] = useState("");
 
   const handleSend = () => {
+    if (!member) {
+      throw new Error("Member state is missing");
+    }
+
     if (newMessage.trim()) {
       const newMsg: Message = {
         id: Crypto.randomUUID(),
-        sender: "1",
+        groupId: chatId,
+        sender: uint8ArrayToHexString(member.credential.verificationKey),
         contents: newMessage,
         timestamp: Date.now(),
-        isRelay: false,
-        originalSender: "1",
-        isPrivate: true,
-        recipientNickname: "ace",
-        senderPeerId: peerId,
-        deliveryStatus: DeliveryStatus.SENDING,
       };
 
       setNewMessage("");
-      sendMessage(newMsg, peerId!, "to");
-
-      // scroll to the end of the list to show the new message
-      flatListRef.current?.scrollToEnd({ animated: true });
+      sendMessage(newMsg);
 
       // dismiss the keyboard after sending
       Keyboard.dismiss();
@@ -87,9 +108,20 @@ export default function Chat() {
           <FlatList
             ref={flatListRef}
             data={messages}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
+            onContentSizeChange={() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            inverted={false}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+            }}
+            contentContainerStyle={{ paddingRight: 5 }}
           />
 
           <View style={styles.inputContainer}>
@@ -149,5 +181,9 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });

@@ -1,26 +1,11 @@
 import { BitchatPacket } from "@/types/global";
-import CompressionUtil from "./compression-service";
+import * as CompressionUtil from "./compression-service";
 import { MessagePadding } from "./padding-service";
 
-const currentHeaderSize = 16;
-const senderIdSize = 8;
-const recipientIdSize = 8;
-const signatureSize = 64;
 const lengthFieldBytes = 4;
 
-const offsets = {
-  version: 0,
-  type: 1,
-  allowedHops: 2,
-  timestamp: 3,
-  flags: 11, // After version(1) + type(1) + allowedHops(1) + timestamp(8)
-};
-
 const flags = {
-  hasRecipient: 0x01,
-  hasSignature: 0x02,
-  isCompressed: 0x04,
-  hasRoute: 0x08,
+  isCompressed: 0x01,
 };
 
 // Encode BitchatPacket to binary format
@@ -31,8 +16,6 @@ const encode = (
   const version = packet.version;
   if (version !== 1) return null;
 
-  // Convert string payload to Uint8Array
-  const textEncoder = new TextEncoder();
   let payload = packet.payload;
   let isCompressed = false;
   let originalPayloadSize: number | null = null;
@@ -50,22 +33,8 @@ const encode = (
     }
   }
 
-  // Handle route data
-  const originalRoute = packet.route ? [packet.route] : []; // Adapt to array format
-  const sanitizedRoute: Uint8Array[] = originalRoute.map((hop) => {
-    if (hop.length === senderIdSize) return hop;
-    if (hop.length > senderIdSize) return hop.subarray(0, senderIdSize);
-    const padded = new Uint8Array(senderIdSize);
-    padded.set(hop);
-    return padded;
-  });
-
-  if (sanitizedRoute.length > 255) return null;
-
-  const hasRoute = sanitizedRoute.length > 0;
-  const routeLength = hasRoute ? 1 + sanitizedRoute.length * senderIdSize : 0;
   const originalSizeFieldBytes = isCompressed ? lengthFieldBytes : 0;
-  const payloadDataSize = routeLength + payload.length + originalSizeFieldBytes;
+  const payloadDataSize = payload.length + originalSizeFieldBytes;
 
   // Check payload size limits
   if (version === 1 && payloadDataSize > 0xffffffff) return null;
@@ -86,36 +55,13 @@ const encode = (
 
   // Flags
   let flagsByte = 0;
-  flagsByte |= flags.hasRecipient; // recipientId is now always present
-  if (packet.signature) flagsByte |= flags.hasSignature;
   if (isCompressed) flagsByte |= flags.isCompressed;
-  if (hasRoute) flagsByte |= flags.hasRoute;
   data.push(flagsByte);
 
   // Payload length (4 bytes, big-endian)
   const length = payloadDataSize;
   for (let shift = 24; shift >= 0; shift -= 8) {
     data.push((length >> shift) & 0xff);
-  }
-
-  // Sender ID (8 bytes, padded if necessary)
-  const senderBytes = textEncoder.encode(packet.senderId);
-  const senderPadded = new Uint8Array(senderIdSize);
-  senderPadded.set(senderBytes.subarray(0, senderIdSize));
-  data.push(...Array.from(senderPadded));
-
-  // Recipient ID (8 bytes, always present)
-  const recipientBytes = textEncoder.encode(packet.recipientId);
-  const recipientPadded = new Uint8Array(recipientIdSize);
-  recipientPadded.set(recipientBytes.subarray(0, recipientIdSize));
-  data.push(...Array.from(recipientPadded));
-
-  // Route data (if present)
-  if (hasRoute) {
-    data.push(sanitizedRoute.length);
-    for (const hop of sanitizedRoute) {
-      data.push(...Array.from(hop));
-    }
   }
 
   // Original size field (if compressed)
@@ -128,14 +74,6 @@ const encode = (
 
   // Payload data
   data.push(...Array.from(payload));
-
-  // Signature (if present)
-  if (packet.signature) {
-    const signatureBytes = textEncoder.encode(packet.signature);
-    const signaturePadded = new Uint8Array(signatureSize);
-    signaturePadded.set(signatureBytes.subarray(0, signatureSize));
-    data.push(...Array.from(signaturePadded));
-  }
 
   let result = new Uint8Array(data);
 
@@ -162,11 +100,10 @@ const decode = (data: Uint8Array): BitchatPacket | null => {
 
 // Core decoding implementation used by decode with and without padding removal
 const decodeCore = (raw: Uint8Array): BitchatPacket | null => {
-  const minHeaderSize = 14; // v1 header size
-  if (raw.length < minHeaderSize + senderIdSize) return null;
+  const minHeaderSize = 16; // version(1) + type(1) + allowedHops(1) + timestamp(8) + flags(1) + length(4)
+  if (raw.length < minHeaderSize) return null;
 
   let offset = 0;
-  const textDecoder = new TextDecoder("utf-8");
 
   // Helper functions for reading data
   const require = (n: number): boolean => offset + n <= raw.length;
@@ -174,13 +111,6 @@ const decodeCore = (raw: Uint8Array): BitchatPacket | null => {
   const read8 = (): number | null => {
     if (!require(1)) return null;
     return raw[offset++];
-  };
-
-  const read16 = (): number | null => {
-    if (!require(2)) return null;
-    const value = (raw[offset] << 8) | raw[offset + 1];
-    offset += 2;
-    return value;
   };
 
   const read32 = (): number | null => {
@@ -205,9 +135,6 @@ const decodeCore = (raw: Uint8Array): BitchatPacket | null => {
   const version = read8();
   if (version === null || version !== 1) return null;
 
-  const minimumRequired = currentHeaderSize + senderIdSize;
-  if (raw.length < minimumRequired) return null;
-
   // Read type and TTL/allowedHops
   const type = read8();
   const allowedHops = read8();
@@ -225,10 +152,7 @@ const decodeCore = (raw: Uint8Array): BitchatPacket | null => {
   const flagsByte = read8();
   if (flagsByte === null) return null;
 
-  const hasRecipient = (flagsByte & flags.hasRecipient) !== 0;
-  const hasSignature = (flagsByte & flags.hasSignature) !== 0;
   const isCompressed = (flagsByte & flags.isCompressed) !== 0;
-  const hasRoute = (flagsByte & flags.hasRoute) !== 0;
 
   // Read payload length
   let payloadLength: number;
@@ -238,59 +162,7 @@ const decodeCore = (raw: Uint8Array): BitchatPacket | null => {
 
   if (payloadLength < 0) return null;
 
-  // Read sender ID
-  const senderIdBytes = readData(senderIdSize);
-  if (!senderIdBytes) return null;
-
-  // Convert sender ID bytes to string, removing null padding
-  const senderIdEnd = senderIdBytes.findIndex((b) => b === 0);
-  const senderId = textDecoder.decode(
-    senderIdBytes.slice(
-      0,
-      senderIdEnd === -1 ? senderIdBytes.length : senderIdEnd,
-    ),
-  );
-
-  // Read recipient ID (always present)
-  if (!hasRecipient) return null; // Recipient ID is required
-  const recipientIdBytes = readData(recipientIdSize);
-  if (!recipientIdBytes) return null;
-
-  // Convert recipient ID bytes to string, removing null padding
-  const recipientIdEnd = recipientIdBytes.findIndex((b) => b === 0);
-  const recipientId = textDecoder.decode(
-    recipientIdBytes.slice(
-      0,
-      recipientIdEnd === -1 ? recipientIdBytes.length : recipientIdEnd,
-    ),
-  );
-
-  // Read route data (if present)
-  let route: Uint8Array | null = null;
   let remainingPayloadBytes = payloadLength;
-
-  if (hasRoute) {
-    if (remainingPayloadBytes < 1) return null;
-    const routeCount = read8();
-    if (routeCount === null) return null;
-    remainingPayloadBytes -= 1;
-
-    if (routeCount > 0) {
-      // For TypeScript version, we'll take the first hop as the route
-      // (adapting from Swift's array to single Uint8Array)
-      if (remainingPayloadBytes < senderIdSize) return null;
-      route = readData(senderIdSize);
-      if (!route) return null;
-      remainingPayloadBytes -= senderIdSize;
-
-      // Skip remaining hops for now (could be enhanced later)
-      const remainingHops = routeCount - 1;
-      const skipBytes = remainingHops * senderIdSize;
-      if (remainingPayloadBytes < skipBytes) return null;
-      readData(skipBytes); // Skip remaining route hops
-      remainingPayloadBytes -= skipBytes;
-    }
-  }
 
   // Read payload
   let payloadData: Uint8Array;
@@ -336,29 +208,15 @@ const decodeCore = (raw: Uint8Array): BitchatPacket | null => {
     payloadData = rawPayload;
   }
 
-  // Read signature (if present)
-  let signature: string | null = null;
-  if (hasSignature) {
-    const signatureBytes = readData(signatureSize);
-    if (!signatureBytes) return null;
-
-    // Convert signature bytes to string
-    signature = textDecoder.decode(signatureBytes);
-  }
-
   // Verify we haven't read past the end
   if (offset > raw.length) return null;
 
   return {
     version,
     type,
-    senderId,
-    recipientId,
-    timestamp: timestamp,
+    timestamp,
     payload: payloadData,
-    signature,
     allowedHops,
-    route: route || new Uint8Array(0), // Default to empty array if not present
   };
 };
 

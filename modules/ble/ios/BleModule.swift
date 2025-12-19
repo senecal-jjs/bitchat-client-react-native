@@ -71,11 +71,11 @@ final class TestManager: NSObject {
 
 final class BleManager: NSObject {
   #if DEBUG
-  static let serviceUUID = CBUUID(string: "F47B5E2D-4A9E-4C5A-9B3F-8E1D2C3A4B5A") // testnet
+  static let serviceUUID = CBUUID(string: "06b165ec-325c-46c5-8996-d6fa2afb8fb1")
   #else
-  static let serviceUUID = CBUUID(string: "F47B5E2D-4A9E-4C5A-9B3F-8E1D2C3A4B5C") // mainnet
+  static let serviceUUID = CBUUID(string: "6b9d68f5-4651-499c-baec-b36a32b9c521") // mainnet
   #endif
-  static let characteristicUUID = CBUUID(string: "A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D")
+  static let characteristicUUID = CBUUID(string: "560929f8-b9d6-436a-814a-8e8a462997b0")
   private static let centralRestorationID = "chat.bitchat.ble.central"
   private static let peripheralRestorationID = "chat.bitchat.ble.peripheral"
   

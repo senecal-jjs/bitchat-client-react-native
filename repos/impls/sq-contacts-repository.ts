@@ -1,5 +1,5 @@
 import { Credentials } from "@/treekem/types";
-import { uint8ArrayToHexString } from "@/utils/string";
+import { hexStringToUint8Array, uint8ArrayToHexString } from "@/utils/string";
 import * as SQLite from "expo-sqlite";
 import ContactsRepository, { Contact } from "../specs/contacts-repository";
 import Repository from "../specs/repository";
@@ -11,10 +11,13 @@ class SQContactsRepository implements ContactsRepository, Repository {
     this.db = database;
   }
 
-  async create(credentials: Credentials): Promise<Contact> {
+  async create(
+    credentials: Credentials,
+    verifiedOob: boolean,
+  ): Promise<Contact> {
     const statement = await this.db.prepareAsync(
-      `INSERT INTO contacts (verification_key, pseudonym, signature, ecdh_public_key) 
-       VALUES ($verificationKey, $pseudonym, $signature, $ecdhPublicKey)`,
+      `INSERT INTO contacts (verification_key, pseudonym, signature, ecdh_public_key, verified_oob) 
+       VALUES ($verificationKey, $pseudonym, $signature, $ecdhPublicKey, $verifiedOob)`,
     );
 
     try {
@@ -23,6 +26,7 @@ class SQContactsRepository implements ContactsRepository, Repository {
         $pseudonym: credentials.pseudonym,
         $signature: uint8ArrayToHexString(credentials.signature),
         $ecdhPublicKey: uint8ArrayToHexString(credentials.ecdhPublicKey),
+        $verifiedOob: verifiedOob ? 1 : 0,
       });
 
       const insertedId = result.lastInsertRowId;
@@ -51,6 +55,7 @@ class SQContactsRepository implements ContactsRepository, Repository {
         pseudonym: string;
         signature: string;
         ecdh_public_key: string;
+        verified_oob: number;
         created_at: number;
         updated_at: number;
       }>({ $id: id });
@@ -82,6 +87,7 @@ class SQContactsRepository implements ContactsRepository, Repository {
         pseudonym: string;
         signature: string;
         ecdh_public_key: string;
+        verified_oob: number;
         created_at: number;
         updated_at: number;
       }>({ $verificationKey: hexKey });
@@ -110,6 +116,7 @@ class SQContactsRepository implements ContactsRepository, Repository {
         pseudonym: string;
         signature: string;
         ecdh_public_key: string;
+        verified_oob: number;
         created_at: number;
         updated_at: number;
       }>({ $pseudonym: pseudonym });
@@ -134,6 +141,7 @@ class SQContactsRepository implements ContactsRepository, Repository {
         pseudonym: string;
         signature: string;
         ecdh_public_key: string;
+        verified_oob: number;
         created_at: number;
         updated_at: number;
       }>();
@@ -237,23 +245,17 @@ class SQContactsRepository implements ContactsRepository, Repository {
     pseudonym: string;
     signature: string;
     ecdh_public_key: string;
+    verified_oob: number;
     created_at: number;
     updated_at: number;
   }): Contact {
     return {
       id: row.id,
-      verificationKey: new Uint8Array(
-        row.verification_key
-          .match(/.{1,2}/g)!
-          .map((byte) => parseInt(byte, 16)),
-      ),
+      verificationKey: hexStringToUint8Array(row.verification_key),
       pseudonym: row.pseudonym,
-      signature: new Uint8Array(
-        row.signature.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-      ),
-      ecdhPublicKey: new Uint8Array(
-        row.ecdh_public_key.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-      ),
+      signature: hexStringToUint8Array(row.signature),
+      ecdhPublicKey: hexStringToUint8Array(row.ecdh_public_key),
+      verifiedOob: row.verified_oob === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

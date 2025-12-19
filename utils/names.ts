@@ -357,7 +357,7 @@ const NOUNS = [
 
 /**
  * Generate a random name consisting of an adjective and a noun
- * @returns A random name like "happy horse" or "clever dolphin"
+ * @returns A random name like "happy-horse" or "clever-dolphin"
  */
 export function generateRandomName(): string {
   const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
