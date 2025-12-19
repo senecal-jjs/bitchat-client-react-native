@@ -41,22 +41,8 @@ export default function RootLayout() {
                     options={{ headerShown: false }}
                   />
                   <Stack.Screen
-                    name="modal"
-                    options={{ presentation: "modal", title: "Modal" }}
-                  />
-                  <Stack.Screen
-                    name="select-group"
-                    options={{
-                      headerShown: false,
-                      presentation: "card",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="name-group"
-                    options={{
-                      headerShown: false,
-                      presentation: "card",
-                    }}
+                    name="(group-modal)"
+                    options={{ presentation: "modal", headerShown: false }}
                   />
                 </Stack>
                 <StatusBar style="auto" />

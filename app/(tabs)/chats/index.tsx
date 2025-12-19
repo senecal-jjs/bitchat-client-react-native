@@ -142,7 +142,7 @@ export default function TabTwoScreen() {
 
   const startNewMessage = () => {
     router.navigate({
-      pathname: "/chats/start-message",
+      pathname: "/(group-modal)/start-group",
     });
   };
 
@@ -166,6 +166,13 @@ export default function TabTwoScreen() {
             <IconSymbol size={28} name="qrcode" color={"white"}></IconSymbol>
           </Pressable>
           <Text style={styles.headerText}>Chats</Text>
+          {/* <Link href="/chats/start-message">
+            <IconSymbol
+              size={28}
+              name="square.and.pencil"
+              color={"white"}
+            ></IconSymbol>
+          </Link> */}
           <Pressable onPress={() => startNewMessage()}>
             <IconSymbol
               size={28}

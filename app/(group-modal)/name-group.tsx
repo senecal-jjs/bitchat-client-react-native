@@ -81,7 +81,9 @@ export default function NameGroupScreen() {
 
       reset(); // Clear the group members context after creation
 
-      router.navigate({
+      // Dismiss modals and navigate to chats tab, then to the new chat
+      // router.dismissAll();
+      router.dismissTo({
         pathname: "/chats/[chatId]",
         params: { chatId: group.id },
       });

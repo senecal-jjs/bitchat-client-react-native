@@ -2,7 +2,7 @@ import ContactList from "@/components/contact-list";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useGroupCreation } from "@/contexts/group-creation-context";
 import { Contact } from "@/repos/specs/contacts-repository";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import {
   Animated,
@@ -16,6 +16,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export default function NewGroupScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { selectedMembers, setSelectedMembers } = useGroupCreation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -27,7 +28,16 @@ export default function NewGroupScreen() {
     }).start();
   }, [selectedMembers.length]);
 
+  useEffect(() => {
+    const dismiss = navigation.addListener("beforeRemove", (e) => {
+      setSelectedMembers([]);
+    });
+
+    return dismiss;
+  }, [navigation]);
+
   const handleClose = () => {
+    setSelectedMembers([]);
     router.back();
   };
 
