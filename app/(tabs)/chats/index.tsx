@@ -1,4 +1,3 @@
-import ContactList from "@/components/contact-list";
 import ConversationItem from "@/components/conversation";
 import QRModal from "@/components/qr-modal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -13,14 +12,7 @@ import GroupsRepository from "@/repos/specs/groups-repository";
 import MessagesRepository from "@/repos/specs/messages-repository";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 const mockConversations = [
@@ -105,8 +97,6 @@ export default function TabTwoScreen() {
     const diff = now - timestamp;
     const millisDay = 86_400_000;
 
-    console.log(`diff :${diff}`);
-
     if (diff < millisDay) {
       // Less than a day
       const date = new Date(timestamp);
@@ -168,13 +158,6 @@ export default function TabTwoScreen() {
             <IconSymbol size={28} name="qrcode" color={"white"}></IconSymbol>
           </Pressable>
           <Text style={styles.headerText}>Chats</Text>
-          {/* <Link href="/chats/start-message">
-            <IconSymbol
-              size={28}
-              name="square.and.pencil"
-              color={"white"}
-            ></IconSymbol>
-          </Link> */}
           <Pressable onPress={() => startNewMessage()}>
             <IconSymbol
               size={28}
@@ -183,19 +166,28 @@ export default function TabTwoScreen() {
             ></IconSymbol>
           </Pressable>
         </View>
-        <FlatList
-          data={conversations}
-          showsVerticalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-        />
-
+        {conversations.length > 0 && (
+          <FlatList
+            data={conversations}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+          />
+        )}
+        {conversations.length <= 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No chats yet</Text>
+            <Text style={styles.emptySubtext}>
+              Tap the new message icon at the top right to start a chat
+            </Text>
+          </View>
+        )}
         <QRModal
           showQRModal={showQRModal}
           handleClose={() => setShowQRModal(false)}
         />
 
-        <Modal
+        {/* <Modal
           visible={showContactList}
           transparent
           animationType="fade"
@@ -212,7 +204,7 @@ export default function TabTwoScreen() {
               <ContactList onContactPress={handleContactPress} />
             </SafeAreaView>
           </SafeAreaProvider>
-        </Modal>
+        </Modal> */}
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -251,5 +243,20 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "600",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 10,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#666",
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: "#444",
   },
 });
