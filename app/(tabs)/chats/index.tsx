@@ -7,29 +7,12 @@ import {
   useRepos,
 } from "@/contexts/repository-context";
 import { dbListener } from "@/repos/db-listener";
-import { Contact } from "@/repos/specs/contacts-repository";
 import GroupsRepository from "@/repos/specs/groups-repository";
 import MessagesRepository from "@/repos/specs/messages-repository";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-
-const mockConversations = [
-  {
-    id: "1",
-    name: "Alice",
-    lastMessage: "Hey, how are you?",
-    timestamp: "10:30 AM",
-  },
-  { id: "2", name: "Bob", lastMessage: "Sounds good!", timestamp: "Yesterday" },
-  {
-    id: "3",
-    name: "Charlie",
-    lastMessage: "See you there.",
-    timestamp: "Tuesday",
-  },
-];
 
 type Conversation = {
   id: string;
@@ -41,7 +24,6 @@ type Conversation = {
 export default function TabTwoScreen() {
   const router = useRouter();
   const [showQRModal, setShowQRModal] = useState(false);
-  const [showContactList, setShowContactList] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const { getRepo } = useRepos();
   const groupsRepo = getRepo<GroupsRepository>(GroupsRepositoryToken);
@@ -88,7 +70,7 @@ export default function TabTwoScreen() {
 
     // Cleanup listener on unmount
     return () => {
-      dbListener.removeGroupCreationListener(fetchConversations);
+      dbListener.removeAllListeners();
     };
   }, []);
 
@@ -120,16 +102,6 @@ export default function TabTwoScreen() {
 
   const handleOpenModal = () => {
     setShowQRModal(true);
-  };
-
-  const handleContactPress = (contact: Contact) => {
-    console.log("Contact selected:", contact.pseudonym);
-    setShowContactList(false);
-    // TODO: Navigate to chat with contact or create new conversation
-    router.navigate({
-      pathname: "/chats/[chatId]",
-      params: { chatId: contact.id },
-    });
   };
 
   const startNewMessage = () => {
@@ -186,25 +158,6 @@ export default function TabTwoScreen() {
           showQRModal={showQRModal}
           handleClose={() => setShowQRModal(false)}
         />
-
-        {/* <Modal
-          visible={showContactList}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowContactList(false)}
-        >
-          <SafeAreaProvider>
-            <SafeAreaView style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>New Message</Text>
-                <Pressable onPress={() => setShowContactList(false)}>
-                  <IconSymbol size={32} name="x.circle" color={"white"} />
-                </Pressable>
-              </View>
-              <ContactList onContactPress={handleContactPress} />
-            </SafeAreaView>
-          </SafeAreaProvider>
-        </Modal> */}
       </SafeAreaView>
     </SafeAreaProvider>
   );
