@@ -3,7 +3,6 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,6 +16,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { ChatBubble } from "@/components/chat-bubble";
 import { BackButton } from "@/components/ui/back-button";
+import { BounceButton } from "@/components/ui/bounce-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useCredential } from "@/contexts/credential-context";
 import {
@@ -132,9 +132,6 @@ export default function Chat() {
 
       setNewMessage("");
       sendMessage(newMsg);
-
-      // dismiss the keyboard after sending
-      Keyboard.dismiss();
     }
   };
 
@@ -203,6 +200,7 @@ export default function Chat() {
               placeholder="What's on your mind?"
               placeholderTextColor="gray"
               multiline
+              allowFontScaling={true}
             />
             <Pressable
               style={[
@@ -230,9 +228,9 @@ export default function Chat() {
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Group Details</Text>
-              <Pressable onPress={() => setShowMembersModal(false)}>
-                <IconSymbol size={32} name="x.circle" color={"white"} />
-              </Pressable>
+              <BounceButton onPress={() => setShowMembersModal(false)}>
+                <IconSymbol size={42} name="x.circle" color={"white"} />
+              </BounceButton>
             </View>
             <View style={styles.modalContent}>
               <View style={styles.membersSection}>
@@ -357,6 +355,9 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 22,
     backgroundColor: "#272727ff",
     color: "white",
     borderRadius: 25,
@@ -383,8 +384,8 @@ const styles = StyleSheet.create({
     bottom: 12,
     backgroundColor: "#0B93F6",
     borderRadius: 20,
-    width: 32,
-    height: 32,
+    width: 37,
+    height: 37,
     alignItems: "center",
     justifyContent: "center",
   },

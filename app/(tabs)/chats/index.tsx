@@ -1,5 +1,6 @@
 import ConversationItem from "@/components/conversation";
 import QRModal from "@/components/qr-modal";
+import { BounceButton } from "@/components/ui/bounce-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
   GroupsRepositoryToken,
@@ -11,7 +12,7 @@ import GroupsRepository from "@/repos/specs/groups-repository";
 import MessagesRepository from "@/repos/specs/messages-repository";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export type Conversation = {
@@ -142,19 +143,6 @@ export default function TabTwoScreen() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.mainContainer}>
-        <View style={styles.chatHeader}>
-          <Pressable onPress={handleOpenModal}>
-            <IconSymbol size={28} name="qrcode" color={"white"}></IconSymbol>
-          </Pressable>
-          <Text style={styles.headerText}>Chats</Text>
-          <Pressable onPress={() => startNewMessage()}>
-            <IconSymbol
-              size={28}
-              name="square.and.pencil"
-              color={"white"}
-            ></IconSymbol>
-          </Pressable>
-        </View>
         {conversations.length > 0 && (
           <FlatList
             data={conversations}
@@ -167,10 +155,28 @@ export default function TabTwoScreen() {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No chats yet</Text>
             <Text style={styles.emptySubtext}>
-              Tap the new message icon at the top right to start a chat
+              Tap the new message icon to start a chat
             </Text>
           </View>
         )}
+
+        <View style={styles.floatingButtonContainer}>
+          <BounceButton onPress={handleOpenModal}>
+            <IconSymbol size={28} name="qrcode" color={"white"}></IconSymbol>
+          </BounceButton>
+
+          <BounceButton
+            // style={styles.floatingButton}
+            onPress={() => startNewMessage()}
+          >
+            <IconSymbol
+              size={28}
+              name="square.and.pencil"
+              color={"white"}
+            ></IconSymbol>
+          </BounceButton>
+        </View>
+
         <QRModal
           showQRModal={showQRModal}
           handleClose={() => setShowQRModal(false)}
@@ -185,18 +191,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#090909ff",
   },
-  chatHeader: {
+  floatingButtonContainer: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: "rgba(38, 35, 35, 0.2)",
+    minWidth: 120,
+    gap: 12,
+    backgroundColor: "#272727ff",
+    padding: 13,
+    borderRadius: 20,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.15)",
+    borderLeftColor: "rgba(255, 255, 255, 0.15)",
+    shadowColor: "rgba(255, 255, 255, 0.1)",
+    shadowOffset: {
+      width: -1,
+      height: -1,
+    },
+    shadowOpacity: 1,
+    shadowRadius: 2,
   },
-  headerText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+  floatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#0B93F6",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   modalContent: {
     flex: 1,

@@ -1,4 +1,5 @@
 import ContactList from "@/components/contact-list";
+import { BounceButton } from "@/components/ui/bounce-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useCredentials } from "@/contexts/credential-context";
 import {
@@ -124,9 +125,9 @@ export default function StartMessageScreen() {
           <View>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Message</Text>
-              <Pressable onPress={handleClose}>
-                <IconSymbol size={32} name="x.circle" color={"white"} />
-              </Pressable>
+              <BounceButton onPress={handleClose}>
+                <IconSymbol size={42} name="x.circle" color={"white"} />
+              </BounceButton>
             </View>
 
             <View style={styles.buttonContainer}>
