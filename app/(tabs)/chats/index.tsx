@@ -122,6 +122,12 @@ export default function TabTwoScreen() {
     setShowQRModal(true);
   };
 
+  const onSettingsPress = () => {
+    router.navigate({
+      pathname: "/(settings-modal)/start-settings",
+    });
+  };
+
   const startNewMessage = () => {
     router.navigate({
       pathname: "/(group-modal)/start-group",
@@ -160,15 +166,24 @@ export default function TabTwoScreen() {
           </View>
         )}
 
-        <View style={styles.floatingButtonContainer}>
+        <BounceButton style={styles.logoContainer} onPress={onSettingsPress}>
+          <View style={styles.logoButton}>
+            <View style={styles.logoAvatar}></View>
+            <Text style={styles.logoText}>Yantagram</Text>
+          </View>
+        </BounceButton>
+
+        <View
+          style={[
+            styles.floatingButtonContainer,
+            styles.floatingButtonBottomRight,
+          ]}
+        >
           <BounceButton onPress={handleOpenModal}>
             <IconSymbol size={28} name="qrcode" color={"white"}></IconSymbol>
           </BounceButton>
 
-          <BounceButton
-            // style={styles.floatingButton}
-            onPress={() => startNewMessage()}
-          >
+          <BounceButton onPress={() => startNewMessage()}>
             <IconSymbol
               size={28}
               name="square.and.pencil"
@@ -191,12 +206,52 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#090909ff",
   },
-  floatingButtonContainer: {
+  logoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  logoContainer: {
+    position: "absolute",
+    top: -180,
+    left: 20,
+    backgroundColor: "#272727ff",
+    padding: 10,
+    borderRadius: 20,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.15)",
+    borderLeftColor: "rgba(255, 255, 255, 0.15)",
+    shadowColor: "rgba(255, 255, 255, 0.1)",
+    shadowOffset: {
+      width: -1,
+      height: -1,
+    },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+  },
+  logoAvatar: {
+    width: 25,
+    height: 25,
+    borderRadius: 20,
+    backgroundColor: "#5766b1ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 13,
+  },
+  logoText: {
+    color: "white",
+    fontWeight: 600,
+    fontSize: 14,
+  },
+  floatingButtonBottomRight: {
     position: "absolute",
     bottom: 20,
     right: 20,
+  },
+  floatingButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     minWidth: 120,
     gap: 12,
     backgroundColor: "#272727ff",
@@ -213,22 +268,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 1,
     shadowRadius: 2,
-  },
-  floatingButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#0B93F6",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   modalContent: {
     flex: 1,
@@ -250,6 +289,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 60,
     paddingHorizontal: 10,
+    marginTop: 30,
   },
   emptyText: {
     fontSize: 18,
