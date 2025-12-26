@@ -1,18 +1,97 @@
-import { BounceButton } from "@/components/ui/bounce-button";
-import { StyleSheet, Text, View } from "react-native";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useCredentials } from "@/contexts/credential-context";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export default function StartSettingsScreen() {
+  const { credentials } = useCredentials();
+
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ backgroundColor: "#1d1d1dff" }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.headerContainer}>
           <View style={styles.logoAvatar}></View>
           <Text style={styles.headerText}>Yantagram</Text>
         </View>
-        <BounceButton style={styles.button} onPress={() => {}}>
-          <Text style={{ color: "white" }}>My Info</Text>
-        </BounceButton>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.shadow,
+            pressed && styles.itemPressed,
+          ]}
+          onPress={() => {}}
+        >
+          <Text style={styles.buttonText}>My Info</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={styles.buttonText}>{credentials?.pseudonym}</Text>
+            <IconSymbol
+              name="chevron.right"
+              color="white"
+              size={15}
+            ></IconSymbol>
+          </View>
+        </Pressable>
+
+        <Text style={styles.sectionHeader}>Preferences</Text>
+
+        <View style={[styles.preferenceContainer, styles.shadow]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.preferenceItemTop,
+              pressed && styles.itemPressed,
+            ]}
+          >
+            <View style={[styles.preferenceContent, styles.preferenceBorder]}>
+              <Text style={styles.buttonText}>Message Retention</Text>
+              <IconSymbol
+                name="chevron.right"
+                color="white"
+                size={15}
+              ></IconSymbol>
+            </View>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.preferenceItemBottom,
+              pressed && styles.itemPressed,
+            ]}
+          >
+            <View style={styles.preferenceContent}>
+              <Text style={styles.buttonText}>Notifications</Text>
+              <IconSymbol
+                name="chevron.right"
+                color="white"
+                size={15}
+              ></IconSymbol>
+            </View>
+          </Pressable>
+        </View>
+
+        <Text style={styles.sectionHeader}>About</Text>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.shadow,
+            pressed && styles.itemPressed,
+          ]}
+        >
+          <Text style={styles.buttonText}>Security & Privacy</Text>
+          <IconSymbol name="chevron.right" color="white" size={15}></IconSymbol>
+        </Pressable>
+
+        <Text style={styles.sectionHeader}>Danger Zone</Text>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.shadow,
+            pressed && styles.itemPressed,
+          ]}
+        >
+          <Text style={styles.danger}>Delete all app data</Text>
+        </Pressable>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -20,15 +99,66 @@ export default function StartSettingsScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     flexDirection: "column",
     marginTop: 20,
+  },
+  shadow: {
+    // iOS Shadow
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+
+    // Android Shadow
+    elevation: 5, // Works for Android 5.0+
+  },
+  itemPressed: {
+    backgroundColor: "rgba(93, 93, 93, 1)",
+  },
+  danger: {
+    color: "red",
+    fontSize: 14,
+    fontWeight: 600,
+    padding: 15,
+  },
+  preferenceContainer: {
+    backgroundColor: "#333",
+    borderRadius: 28,
+    marginHorizontal: 10,
+  },
+  preferenceItemTop: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  preferenceItemBottom: {
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  preferenceContent: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 10,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  preferenceBorder: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: "rgba(93, 93, 93, 1)",
   },
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#767676ff",
+    alignSelf: "center",
+    backgroundColor: "black",
+    borderRadius: 25,
+    padding: 10,
+    marginBottom: 15,
   },
   headerText: {
     color: "white",
@@ -44,8 +174,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 13,
   },
+  sectionHeader: {
+    color: "#c1c1c1ff",
+    fontSize: 16,
+    marginLeft: 20,
+    marginTop: 20,
+    marginBottom: 10,
+  },
   button: {
     flexDirection: "row",
-    backgroundColor: "#767676ff",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 25,
+    backgroundColor: "#333",
+    marginTop: 5,
+    paddingHorizontal: 10,
+    marginHorizontal: 10,
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: 500,
+    color: "white",
+    padding: 15,
   },
 });
